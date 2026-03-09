@@ -1,2 +1,2 @@
 # PyPoker
-School project which nobody wanted
+Poker made on python with a discord used as a "server" 

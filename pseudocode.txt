@@ -1,0 +1,25 @@
+In the menu users need to type in discord auth and urls to other users they want to play with. Also for the future we can make a saving feature, so that you don't need to do it every time.
+
+In the begining it sends discord dm to 2-4 people, the code will wait until the message from all users is either "accept" or "decline"
+Each person's id will be saved to remember them and check who does what.
+After that cards are randomized and put into classes
+persons += 1
+
+Cards = [1,2,3,4,5,6,7,8,9,10,11,12,13]
+
+for people in persons:
+    for range 5:
+        card = choice(Cards)
+        Cards.remove(card)
+
+Class:
+    Cards = []
+
+The whole talk goes trough the "game" while using discord as a server. For example:
+It's your turn -> Server sends you message into discord and your client "game" reads it -> The "game" writes everything into your client output and waits for input->
+-> When you type something and press Enter, the client sends message trough discord which the server will reads
+
+!There's a problem that users can just open a chat where the "game" talks between clients, we'll try our best to prevent it from happening 
+!How we gonna fix it is probably a simple crypting system. So that it's harder to the normal person to just read it
+
+We have a betting system, where user can make bets, lose and gain "money", to make the game more interesting
