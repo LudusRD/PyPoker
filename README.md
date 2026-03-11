@@ -1,2 +1,2 @@
 # PyPoker
-Poker made on python with a discord used as a "server" 
+Poker made on python with "insert webbserver which approves" used as a "server" 
