@@ -1,4 +1,5 @@
 import random
+import requests
 import json
 from itertools import combinations
 from collections import Counter
@@ -145,9 +146,47 @@ def start_game(player_names):
         print(f"split: {', '.join(winners)}")
     else:
         print(f"winner: {winners[0]}")
+
+
+
+players = {
+
+}
+player_amount = 0
+
+def Set_player(name,id):
+    global player_amount
+    global players
+    player_amount += 1
+    players.update({f"player{player_amount}": {"name":name,"id":id,"prev_msg_id":0}})
+
+def Get_player_info(Url,Initialisation_msg="",header={"":""}):
+    r = requests.get(Url,headers=header)
+    messages = json.loads(r.text)
+    author_infos = []
+    for i in range(len(messages)):
+        Unique = True
+        author_length = len(author_infos)
+        if author_length >= 4:
+            break
+        author_info_temp = messages[i]['author']
+        #- checks if player is already registered
+        for author in author_infos:
+            if author['id'] == author_info_temp['id']:
+                Unique = False
+        #Appends player
+        if Unique == True:
+            author_infos.append(author_info_temp)
+            Set_player(author_info_temp['username'],author_info_temp['id'])
         
-        
+    
+
+Get_player_info("The Url is definitely not breaking any websites TOS",header={'authorization': ''})
+print(players)
+
 #the game
 if __name__ == "__main__":
+
+
     players = ["Fedor", "Adam", "Indy", "Roman"]
     start_game(players)
