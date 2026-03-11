@@ -1,0 +1,21 @@
+import requests
+import json
+import threading
+
+header = {
+    "authorization" : ""
+}
+Message = {
+    "content" : ""
+}
+
+def Send_Message(Url,message):
+    requests.post(f"https://discord.com/api/v8/channels/{Url}/messages",headers=header,data={"content":message})
+
+def Get_messages(Url,Restrict_duplicates,player_ids):
+    requests.get(https://discord.com/api/v8/channels/{Url}/messages",)
+    for id in player_ids
+
+
+#Logic
+# Ill think about it later
