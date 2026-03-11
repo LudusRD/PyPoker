@@ -148,22 +148,40 @@ def start_game(player_names):
         print(f"winner: {winners[0]}")
 
 
-
 players = {
 
 }
-player_amount = 0
 
-def Set_player(name,id):
+player_amount = 0
+#-
+def Set_player(name,id,prev_msg_id=0):
     global player_amount
     global players
     player_amount += 1
-    players.update({f"player{player_amount}": {"name":name,"id":id,"prev_msg_id":0}})
+    players.update({f"player{player_amount}": {"name":name,"id":id,"prev_msg_id":prev_msg_id,"Prev_action":"","Aggresion":0}})
+#-
+def Compare_timestamps(timestamp1,timestamp2):
+    End_char = 4
+    #If the years (uneven compared to the rest) are bigger/smaller
+    if int(timestamp1[:End_char]) > int(timestamp2[:End_char]): return False
+    elif int(timestamp1[:End_char]) < int(timestamp2[:End_char]): return True
+    else:
+        End_char = 7
+        #Goes through one by one, checks if highest precedent is smaller/bigger
+        for i in range(4):
+            Start_char = End_char - 2
+            if int(timestamp1[Start_char:End_char]) < int(timestamp2[Start_char:End_char]): return True
+            elif int(timestamp1[Start_char:End_char]) > int(timestamp2[Start_char:End_char]): return False
+            End_char += 3
 
-def Get_player_info(Url,Initialisation_msg="",header={"":""}):
+    #If all dates are exactly equal
+    return True
+#-
+def Get_player_info(Url,Initialisation_msg="",header={"authorization":""},timestamp='0000-00-01T00:00'):
     r = requests.get(Url,headers=header)
     messages = json.loads(r.text)
     author_infos = []
+    #sorts through the messages
     for i in range(len(messages)):
         Unique = True
         author_length = len(author_infos)
@@ -176,13 +194,32 @@ def Get_player_info(Url,Initialisation_msg="",header={"":""}):
                 Unique = False
         #Appends player
         if Unique == True:
-            author_infos.append(author_info_temp)
-            Set_player(author_info_temp['username'],author_info_temp['id'])
+            if Compare_timestamps(timestamp, messages[i]['timestamp']) == True:
+                if messages[i]['content'] == Initialisation_msg or Initialisation_msg == "":
+                    author_infos.append(author_info_temp)
+                    Set_player(author_info_temp['username'],author_info_temp['id'],messages[i]['id'])
         
-    
-
-Get_player_info("The Url is definitely not breaking any websites TOS",header={'authorization': ''})
+Get_player_info("Non sus url",header={'authorization': ''},timestamp='0000-00-01T00:00')
 print(players)
+#-
+def Get_player_action(Url,player,header,valid_actions,timestamp='0000-00-01T00:00'):
+    r = requests.get(Url,headers=header)
+    messages = json.loads(r.text)
+    for i in range(len(messages)):
+        #Checks if message is too early
+        if Compare_timestamps(timestamp,messages[i]['timestamp']) == False:
+            break
+
+        # Checks if it's correct author and action
+        author_info_temp = messages[i]['author']
+        if player['id'] == author_info_temp['id']:
+            for action in valid_actions:
+                if messages[i]['contents'].lower() == action.lower():
+                    return action
+    
+    return None
+                    
+            
 
 #the game
 if __name__ == "__main__":
