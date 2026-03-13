@@ -22,4 +22,24 @@ It's your turn -> Server sends you message into discord and your client "game" r
 !There's a problem that users can just open a chat where the "game" talks between clients, we'll try our best to prevent it from happening 
 !How we gonna fix it is probably a simple crypting system. So that it's harder to the normal person to just read it
 
+I also love femboys
+
 We have a betting system, where user can make bets, lose and gain "money", to make the game more interesting
+
+
+
+(wait i still don't know how to play poker?)
+What information is needed in poker?
+
+
+Server structure: 
+Set one player as host? 
+
+get https://servername
+
+get https://servername/lobby{random_num}
+Stores lobbies
+
+
+get https://servername/lobby{random_num}/players
+stores players information
