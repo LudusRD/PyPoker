@@ -73,11 +73,12 @@ def Set_local_player(name):
         "Is_host":False
     }
 
-def Get_match_list():
+def Get_return_matches():
     with open(Json_path,"r") as json_file:
         data = json.load(json_file)
-        matches = data['Matches']
+        return data['Matches']
 
+def Print_match_list(matches):  
     print("Open_matches: \n")
     for match in matches:
         if match['Is_open'] == True:
@@ -135,7 +136,7 @@ Set_local_player("Adam")
 Hard_reset_json()
 #Create_match("Test_room3",local_player)
 
-#Get_match_list()
+Print_match_list(Get_return_matches())
 
 #Join_match(2,local_player)
 
