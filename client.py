@@ -14,7 +14,7 @@ ip = socket.gethostbyname(host_name)
 print("Welcome to PyPoker, don't judge me for bad P2P networking")
 
 while True:
-    print("1. Find server from enviorment file")
+    print("1. Find server from environment file")
     print("2. Input custom ip address")
     server_choice = input(":")
 

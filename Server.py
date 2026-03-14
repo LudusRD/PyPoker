@@ -27,10 +27,11 @@ print("server bound")
 print (server)
 
 
-def Match_requests(Packet):
+def Match_requests(Packet,client):
+    global server
     if Packet['Request'] == 'Get_lobbies':
-        Lobbies = json.dumps(Get_return_matches)
-        server.sendto(Lobbies.encode(),(Packet['Ip'],6677))
+        Lobbies = json.dumps(Get_return_matches())
+        client.sendto(Lobbies.encode(),(Packet['Ip'],6677))
 
     
 
@@ -53,9 +54,12 @@ while True:
     for client in clients:
         #Takes string request and loads in json format
         try:
-            Request = client[0].recv(2048).decode()
-            print(json.loads(Request))
-            sleep(0.5)
+            Packet,addr = client[0].recvfrom(2048)
+            Packet = json.loads(Packet.decode())
+            print(Packet)
+            print(addr)
+            Match_requests(Packet,client[0])
+            sleep(0.5)           
         except:
             print("Request error 1")
 
