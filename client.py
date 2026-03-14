@@ -2,9 +2,16 @@ import socket
 from os import environ,getenv
 from dotenv import load_dotenv,dotenv_values
 from time import sleep
+import json
+from P2P_testing import Generate_random_num_id
 
 load_dotenv()
 
+# Initial connection __----__ 
+host_name = socket.gethostname()
+ip = socket.gethostbyname(host_name)
+
+#-
 client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 Server_ip = getenv('Server_ip')
 
@@ -21,7 +28,58 @@ while Connected == False:
     except:
         print("damn, i don't know what error you got?")
     sleep(0.5)
+#------------------____________---------------------
+
+#-
+def Send_request():
+    global Packet
+    Request = json.dumps(Packet)    
+    client.send(Request.encode())
+    data = None
+    while data == None:
+        try:
+            data, addr = client.recvfrom(2048)
+        except:
+            print("Response request failed, server unrespondant")
+    
+    return data
+#-
+Packet = {
+    "Name":"",
+    "id":"",
+    "Ip":"",
+    "Is_host":False,
+    "Request":""
+}
+Packet['id'] = Generate_random_num_id()
+Packet['Ip'] = ip
+
+print("Welcome to PyPoker, don't judge me for bad P2P networking")
+
+Packet['Name'] = input("Please input a suitable Name, (there are no curse filters)")
 
 
 while True:
+    print("1. Check/join Available lobbies")
+    print("2. Create Lobby")
+    print("3. exit")
+    Lobby_choice = input("")
+    if Lobby_choice == "1":
+        Packet['Request'] = "Get_lobbies"
+        lobby_list = Send_request()
+        Checking_lobby_list = True
+        print(lobby_list)
+
+    elif Lobby_choice == "2":
+        Packet['Request'] = "Create_lobby"
+        status = Send_request()
+        In_lobby = True
+
+    elif Lobby_choice == "3":
+        break
+    else:
+        print("Invalid option")
+
+
+
     client.sendto(("Hello from client".encode()),(Server_ip,6677))

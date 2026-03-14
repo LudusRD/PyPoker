@@ -1,6 +1,8 @@
 import socket
 from os import environ
 import threading
+from time import sleep
+import json
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 Capacity = 4
@@ -21,7 +23,8 @@ print("server bound")
 
 print (server)
 
-
+def Match_requests(Request):
+    pass
 
 server.listen()
 
@@ -37,5 +40,7 @@ clients_dict = {
 
 while True:
     for client in clients:
-        print(client[0].recv(1024).decode())
+        Request = client[0].recv(2048).decode()
+        print(json.load(Request))
+        sleep(0.5)
 
