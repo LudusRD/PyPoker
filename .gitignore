@@ -1,3 +1,5 @@
 *.pyc
 ___pycache___/
 .vscode
+Logic_json.json
+.env
