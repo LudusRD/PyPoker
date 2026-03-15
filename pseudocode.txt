@@ -43,3 +43,21 @@ Stores lobbies
 
 get https://servername/lobby{random_num}/players
 stores players information
+
+
+
+Fuck the P2P code is already a fucking mess
+I hate this shit, fuck fuck fuck 
+
+//
+For when client is actually in a room:
+
+You could send a package asking for room_status 
+
+Or the server could just loop through the 
+player list inside of the rooms 
+and send a message telling the room_status
+
+This might be easier
+
+Then the actual game will be a shit show, P2P is a genuine nightmare

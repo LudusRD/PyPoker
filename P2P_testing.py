@@ -74,10 +74,20 @@ def Set_local_player(name):
         "Is_host":False
     }
 
-def Get_return_matches():
+def Get_return_matches(raw=False):
+    Matches = []
     with open(Json_path,"r") as json_file:
         data = json.load(json_file)
-        return data['Matches']
+        if raw == True:
+            return data['Matches']
+        else:
+            for match in data['Matches']:
+                Matches.append({"1": f"Lobby_name: {match['Room_name']}",
+                               "2": f"Player_amount: {len(match['Players'])}",
+                               "3": f"Id: {match['Room_id']}",
+                               "4": f"Has_password: {match['Password']!=None}",
+                               "5": ""})
+            return json.dumps(Matches) 
 
 def Print_match_list(matches):  
     print("Open_matches: \n")
@@ -98,14 +108,14 @@ def Join_match(Room_id,client,Password=None):
         for player in match['Players']:
             if player['id'] == client['id']:
                 print("greedy goblin, you are already in a different room")
-                return
+                return "Client in different lobby"
         #.
         if Room == None:
             if match['Room_id'] == Room_id:
                 Room = match 
     if Room == None:
         print("!!Invalid Room Id!!")
-        return
+        return "Invalid room Id"
     #Try Joining
     if Room['Password'] == Password or Room['Password']==None:
         client['Is_host'] = False
@@ -115,6 +125,7 @@ def Join_match(Room_id,client,Password=None):
             json_file.seek(0)
             print(f"Joined room({Room_id}) succesfully")
             Display_players(Room_id)
+            return f"Joined:{Room_id}"
 
 def Display_players(Room_id):
     with open(Json_path,"r") as json_file:
@@ -137,7 +148,7 @@ Set_local_player("Adam")
 Hard_reset_json()
 #Create_match("Test_room3",local_player)
 
-Print_match_list(Get_return_matches())
+Print_match_list(Get_return_matches(True))
 
 #Join_match(2,local_player)
 

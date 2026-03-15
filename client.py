@@ -42,6 +42,9 @@ while Connected == False:
         print("Server had an abortion")
     except ConnectionError:
         print("Idk, some error in connection")
+    except OSError:
+        print("Already connected")
+        break
     except:
         print("damn, i don't know what error you got?")
     sleep(0.5)
@@ -73,20 +76,30 @@ def Room_setup():
 
 def Join_room():
     global Packet
+    global Browsing_lobbies
+    global In_lobby
+
+    #
     while True:
         print("Input the Id of the room you want to join")
         print("Or input exit")
         id = input("Input the Id of the room you want to join")
         Password = input("Input password(if password is none doesn't matter)")
+
+        #Sends room join request
         if id.isnumeric():
             Packet['Request'] = "Join_room"
             Packet['Rq_spec'] = {"id":id,"Password":Password}
             Result = Send_request()
-
-
+            if Result == "Sucess":
+                Packet['Room']['ingame'] = True
+                Packet['Room']['id'] = id
+        #Else goes back to main page
         else:
+            Browsing_lobbies = False
             break
 
+#Packet to send to the server
 Packet = {
     "Socket_obj":client,
     "Name":"",
@@ -100,7 +113,6 @@ Packet = {
         "ingame":False,
         "id":"",
         "Room_name":"",
-        "Password":""
     }
 }
 
@@ -108,33 +120,70 @@ Packet['Name'] = input("Please input a suitable Name, (there are no curse filter
 Packet['Request'] = "Init"
 Send_request()
 
-Lobbies_Open = True
+In_lobby = False
+Game_started = False
+Browsing_lobbies = False
 
+#While loop
 while True:
-    print("1. Check/join Available lobbies")
-    print("2. Create Lobby")
-    print("3. exit")
-    Lobby_choice = input("")
-    if Lobby_choice == "1":
-        Packet['Request'] = "Get_lobbies"
-        lobby_list = json.loads(Send_request())
+    if In_lobby == False:
+        #Main screen where you can join, create and exit
+        if Browsing_lobbies == True:
+            Join_room()
+        else:
+            print("1. Check/join Available lobbies")
+            print("2. Create Lobby")
+            print("3. exit")
+            Lobby_choice = input("")
 
-        Checking_lobby_list = True
-        print(lobby_list)
+            #sends request, server doesn't change player variables, server sends back
+            # List of lobbies
+            if Lobby_choice == "1":
+                Packet['Request'] = "Get_lobbies"
+                lobby_list = json.loads(json.loads(Send_request()))
 
-    elif Lobby_choice == "2":
-        Room_name = Room_setup()
-        status = Send_request()
-        if status[:6] == "Sucess":
-            Packet['Is_host'] = True
-            Packet['Room']['id'] = status[7:]
-            Packet['Room']['Room_name'] = Room_name
-
-    elif Lobby_choice == "3":
-        break
+                Checking_lobby_list = True
+                for dict in lobby_list:
+                    for item in dict.items():
+                        print(item)
+                    print("")
+                Browsing_lobbies = True
+            
+            #sends request, server changes player variable 
+            elif Lobby_choice == "2":
+                Room_name = Room_setup()
+                #Reminder for later, Room_setup changes Packet['Request']
+                status = Send_request()
+                if status[:6] == "Sucess":
+                    Packet['Is_host'] = True
+                    Packet['Room']['id'] = status[7:]
+                    Packet['Room']['Room_name'] = Room_name
+            #--__--
+            elif Lobby_choice == "3":
+                break
+            else:
+                print("Invalid option")
     else:
-        print("Invalid option")
+        #Inside of a lobby
+        if Game_started == False:
+            #Maybe just recieve info and don't send a whole ass package
+
+
+            #Packet['Request'] = "Room_status"
+            #Room_status = json.loads(json.loads(Send_request()))
+            #print("Game started = False")
+            #print("Players: ")
+            #for dict in Room_status:
+            #    print("Player: ")
+            #    for item in dict.items():
+            #        print(item)
+            #    print("")
+            pass
+
+            
 
 
 
-    client.sendto(("Hello from client".encode()),(Server_ip,6677))
+    #client.sendto(("Hello from client".encode()),(Server_ip,6677))
+
+print("thanks for playing pypoker!")
