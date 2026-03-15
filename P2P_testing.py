@@ -49,6 +49,7 @@ def Create_match(Room_name,Host,Password=None):
         json_file.seek(0)
         with open(Json_path,"w") as json_file:
             json.dump(data,json_file,indent=4)
+        return match['Room_id']
 
 local_player = {
     "Name":"",

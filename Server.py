@@ -3,7 +3,7 @@ from os import environ
 import threading
 from time import sleep
 import json
-from P2P_testing import Print_match_list,Get_return_matches
+from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 Capacity = 4
@@ -27,11 +27,27 @@ print("server bound")
 print (server)
 
 
-def Match_requests(Packet,client):
+def Match_lobby_requests(Packet,client):
+    #Lobby handling
     global server
-    if Packet['Request'] == 'Get_lobbies':
+    Request = Packet['Request']
+    if Request == 'Get_lobbies':
         Lobbies = json.dumps(Get_return_matches())
         client.sendto(Lobbies.encode(),(Packet['Ip'],6677))
+
+    elif Request == "Join_room":
+        specs = Packet['Rq_spec']
+        Join_match(specs['id'],Packet,specs['Password'])
+
+    elif Request == "Create_lobby":
+        Specs = Packet['Rq_spec']
+        Room_id = Create_match(Specs['Name'],Packet,Specs['Password'])
+        client.sendto(f"Sucess:{Room_id}".encode(),(Packet['Ip'],6677))
+
+    elif Request == "Init":
+        Standby_clients.append(Packet)
+        client.sendto("Initialized".encode(),(Packet['Ip'],6677))
+    
 
     
 
@@ -43,9 +59,12 @@ Connection_thread.start()
 
 print("pluh")
 
-clients_dict = {
+Standby_clients = [
 
-}
+]
+Ingame_clients = [
+
+]
 
 
 #--__--              --__--
@@ -58,7 +77,7 @@ while True:
             Packet = json.loads(Packet.decode())
             print(Packet)
             print(addr)
-            Match_requests(Packet,client[0])
+            Match_lobby_requests(Packet,client[0])
             sleep(0.5)           
         except:
             print("Request error 1")

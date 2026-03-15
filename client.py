@@ -61,18 +61,54 @@ def Send_request():
     
     return data.decode()
 #-
+def Room_setup():
+    global Packet
+    Name = input("Input Room name: ")
+    Password = input("*optional, input password")
+    if Password == "": Password = None
+    #-
+    Packet['Request'] = 'Create_lobby'
+    Packet['Rq_spec'] = {"Name":Name,"Password":Password}
+    return Name
+
+def Join_room():
+    global Packet
+    while True:
+        print("Input the Id of the room you want to join")
+        print("Or input exit")
+        id = input("Input the Id of the room you want to join")
+        Password = input("Input password(if password is none doesn't matter)")
+        if id.isnumeric():
+            Packet['Request'] = "Join_room"
+            Packet['Rq_spec'] = {"id":id,"Password":Password}
+            Result = Send_request()
+
+
+        else:
+            break
+
 Packet = {
+    "Socket_obj":client,
     "Name":"",
-    "id":"",
-    "Ip":"",
+    "id":Generate_random_num_id(),
+    "Ip":ip,
     "Is_host":False,
-    "Request":""
+    "Request":"",
+    'Rq_spec':{},
+
+    "Room":{
+        "ingame":False,
+        "id":"",
+        "Room_name":"",
+        "Password":""
+    }
 }
-Packet['id'] = Generate_random_num_id()
-Packet['Ip'] = ip
 
 Packet['Name'] = input("Please input a suitable Name, (there are no curse filters)")
+Packet['Request'] = "Init"
+Send_request()
 
+Lobbies_Open = True
 
 while True:
     print("1. Check/join Available lobbies")
@@ -87,9 +123,12 @@ while True:
         print(lobby_list)
 
     elif Lobby_choice == "2":
-        Packet['Request'] = "Create_lobby"
+        Room_name = Room_setup()
         status = Send_request()
-        In_lobby = True
+        if status[:6] == "Sucess":
+            Packet['Is_host'] = True
+            Packet['Room']['id'] = status[7:]
+            Packet['Room']['Room_name'] = Room_name
 
     elif Lobby_choice == "3":
         break
