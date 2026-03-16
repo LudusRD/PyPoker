@@ -27,7 +27,6 @@ def Hard_reset_json():
 
 
 def Create_match(Room_name,Host,Password=None):
-    Host['Is_host'] = True
 
     with open(Json_path, "r+") as json_file:
         data = json.load(json_file)
@@ -111,7 +110,7 @@ def Join_match(Room_id,client,Password=None):
                 return "Client in different lobby"
         #.
         if Room == None:
-            if match['Room_id'] == Room_id:
+            if str(match['Room_id']) == Room_id:
                 Room = match 
     if Room == None:
         print("!!Invalid Room Id!!")

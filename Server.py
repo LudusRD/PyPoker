@@ -63,6 +63,7 @@ def Match_lobby_requests(Packet,client):
         #Changes serverside client variables
         Cl_Room = Get_client_using_id(Packet['id'])['Room']
         Cl_Room['ingame'] = True
+        Cl_Room['Is_host'] = True
         Cl_Room['id'] = Room_id
 
     elif Request == "Init":
@@ -72,6 +73,10 @@ def Match_lobby_requests(Packet,client):
         client.sendto("Initialized".encode(),(Packet['Ip'],6677))
 
 def Match_ingame_requests(Packet,client,lobby):
+
+    #Roman compare Packet['Request'] to the different actions you can do
+
+
     pass
 
 def Lobby_handling(Lobby):
@@ -82,6 +87,8 @@ def Lobby_handling(Lobby):
 
 
         for player in Lobby['Players']:
+                # Might as well predetermine the winner and not let them know.
+
                 player['Cards'] = []
                 socket = player['Socket_obj']
                 Packet, addr = socket.recvfrom(2048)
@@ -95,12 +102,17 @@ def Lobby_handling(Lobby):
         while Game_started == True:
             if Game_initialized == False:
                 for player in Lobby['Players']:
-                    player['Cards'] = []
+                    player['Cards'] = [] #Distribute cards  (Roman)
                     socket = player['Socket_obj']
                     socket.sendto("Lobby started".encode(),(player['Ip'],6677))
+                    #Socket sendto (Cads.encode()) (if its list convert to json using json.dumps)
 
             for player in Lobby['Players']:
-                socket.sendto("Your cards are: ")
+                #socket.sendto("Your cards are: ") ignore this
+
+                # send to a 
+
+                pass
     
 
 #Listens for Capacity number players

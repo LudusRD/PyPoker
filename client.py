@@ -36,14 +36,16 @@ Connected = False
 while Connected == False:
     try:
         client.connect((Server_ip,6677))
+        break
     except ConnectionRefusedError:
         print("Server refused connection")
     except ConnectionAbortedError:
         print("Server had an abortion")
     except ConnectionError:
         print("Idk, some error in connection")
-    except OSError:
+    except OSError as e:
         print("Already connected")
+        print(e)
         break
     except:
         print("damn, i don't know what error you got?")
@@ -131,7 +133,8 @@ while True:
     if In_lobby == False:
         #Main screen where you can join, create and exit
         if Browsing_lobbies == True:
-            Join_room()
+            #Join_room()
+            pass
         else:
             print("1. Check/join Available lobbies")
             print("2. Create Lobby")
