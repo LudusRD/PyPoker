@@ -50,6 +50,7 @@ while Connected == False:
     sleep(0.5)
 #------------------____________---------------------
 
+print(client)
 #-
 def Send_request():
     global Packet
@@ -101,18 +102,19 @@ def Join_room():
 
 #Packet to send to the server
 Packet = {
-    "Socket_obj":client,
+    "Socket_obj":f"{client}",
     "Name":"",
     "id":Generate_random_num_id(),
     "Ip":ip,
-    "Is_host":False,
     "Request":"",
     'Rq_spec':{},
 
+    "Cards":[],
     "Room":{
         "ingame":False,
         "id":"",
         "Room_name":"",
+        "Is_host":False,
     }
 }
 
@@ -135,10 +137,9 @@ while True:
             print("2. Create Lobby")
             print("3. exit")
             Lobby_choice = input("")
-
             #sends request, server doesn't change player variables, server sends back
             # List of lobbies
-            if Lobby_choice == "1":
+            if Lobby_choice == "1": #See öabbies
                 Packet['Request'] = "Get_lobbies"
                 lobby_list = json.loads(json.loads(Send_request()))
 
@@ -148,9 +149,10 @@ while True:
                         print(item)
                     print("")
                 Browsing_lobbies = True
+                Join_room()  #Join lobby or not
             
             #sends request, server changes player variable 
-            elif Lobby_choice == "2":
+            elif Lobby_choice == "2":  #Setup lobby
                 Room_name = Room_setup()
                 #Reminder for later, Room_setup changes Packet['Request']
                 status = Send_request()
@@ -158,14 +160,37 @@ while True:
                     Packet['Is_host'] = True
                     Packet['Room']['id'] = status[7:]
                     Packet['Room']['Room_name'] = Room_name
+                    In_lobby = True
             #--__--
-            elif Lobby_choice == "3":
+            elif Lobby_choice == "3": #Rage quit
                 break
-            else:
+            else: #Pretty self explanatory
                 print("Invalid option")
     else:
         #Inside of a lobby
         if Game_started == False:
+            print("1. start game")
+            print("2. leave lobby/close lobby")
+            Lobby_choice = input()
+
+            if Lobby_choice == "1":
+                Packet['Request'] = "start game"
+                answer = Send_request()
+                if answer == "Sucess":
+                    Game_started = True
+                elif answer == "Not_host":
+                    print("Only host can start")
+                else:
+                    print("stargame failed")
+
+                
+            elif Lobby_choice == "2":
+                Packet['Request'] = "leave"
+                Send_request()
+            else:
+                print("invalid choice")
+
+
             #Maybe just recieve info and don't send a whole ass package
 
 

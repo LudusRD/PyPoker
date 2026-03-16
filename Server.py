@@ -11,6 +11,9 @@ Capacity = 4
 
 #reminder to future self: (and roman i guess)
 # If you use firewall it will not be able to recieve anything
+hostname = socket.gethostname()
+ip = socket.gethostbyname(hostname)
+print(ip)
 
 #Basic connection logic
 clients = []
@@ -18,13 +21,17 @@ def Check_for_connections():
     while True:
         global clients
         client,addr = server.accept()
+        print(client)
         clients.append((client,addr))
 
 
-server.bind(('192.168.0.49',6677))
+server.bind((ip,6677))
 print("server bound")
 
 print (server)
+def Decode_string_client(string):
+    pass
+
 def Get_client_using_id(id):
     for client in Standby_clients:
         if client['id'] == id:
@@ -60,9 +67,40 @@ def Match_lobby_requests(Packet,client):
 
     elif Request == "Init":
         Standby_clients.append(Packet)
+        Client_dict = Get_client_using_id(Packet['id'])
+        Client_dict.update({"Socket_obj":client})
         client.sendto("Initialized".encode(),(Packet['Ip'],6677))
-    
 
+def Match_ingame_requests(Packet,client,lobby):
+    pass
+
+def Lobby_handling(Lobby):
+    while True:
+        Game_started = False
+        Game_initialized = False
+        All_cards = []
+
+
+        for player in Lobby['Players']:
+                player['Cards'] = []
+                socket = player['Socket_obj']
+                Packet, addr = socket.recvfrom(2048)
+                if Packet['Request'] == "start game":
+                    if Packet['Room']['Is_host'] == True:
+                        Game_started = True
+                        socket.sendto("Sucess".encode(),(player['Ip'],6677))
+                    else:
+                        socket.sendto("Not_host".encode(),(player['Ip'],6677))
+
+        while Game_started == True:
+            if Game_initialized == False:
+                for player in Lobby['Players']:
+                    player['Cards'] = []
+                    socket = player['Socket_obj']
+                    socket.sendto("Lobby started".encode(),(player['Ip'],6677))
+
+            for player in Lobby['Players']:
+                socket.sendto("Your cards are: ")
     
 
 #Listens for Capacity number players
