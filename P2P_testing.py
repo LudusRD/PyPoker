@@ -29,6 +29,7 @@ def Create_match(Room_name,Host,Password=None):
 
     with open(Json_path, "r+") as json_file:
         data = json.load(json_file)
+        Host['Room']['Is_host'] = True
         match = {
             "Room_name":Room_name,
             "Password":Password,
@@ -96,6 +97,35 @@ def Print_match_list(matches):
             print(f"Id:{match['Room_id']}")
             if match['Password'] != None: print(f"Password_required!!")
             print("")
+
+def Check_for_host(client_id,Room_id=None,Match=None):
+    with open(Json_path,"r") as json_file:
+        data = json.load(json_file)
+    if Room_id == None and Match == None:
+        print("Specify atleaast one way to find it")
+        return
+    if Room_id != None and Match != None:
+        print("Defaulting to Match")
+
+    if Match != None:
+        for player in Match['Players']:
+            if player['id'] == client_id:
+                if player['Room']['Is_host'] == True:
+                    return True
+
+    if Room_id != None:
+        for match in data['Matches']:
+            if match['Room_id'] == Room_id:
+                for player in match['Players']:
+                    if player['Room_id'] == client_id:
+                        if player['Room']['Is_host'] == True:
+                            return True
+
+    return False
+
+
+    
+
 
 def Join_match(Room_id,client,Password=None):
     with open(Json_path,"r") as json_file:

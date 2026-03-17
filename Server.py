@@ -4,7 +4,7 @@ import threading
 from time import sleep
 import json
 import random
-from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match
+from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match,Check_for_host
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 Capacity = 4
@@ -160,7 +160,7 @@ def Lobby_handling(Lobby):
                     raw, addr = sock.recvfrom(2048)
                     Packet = json.loads(raw.decode())
                     if Packet['Request'] == "start game":
-                        if Packet['Room']['Is_host'] == True:
+                        if Check_for_host(Packet['id'],Match=Lobby) == True:
                             Game_started = True
                             sock.sendto("Sucess".encode(),(player['Ip'],6677))
                         else:

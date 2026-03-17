@@ -1,7 +1,7 @@
 import socket
 from os import environ,getenv
 #Im lazy to install it
-#from dotenv import load_dotenv,dotenv_values
+from dotenv import load_dotenv,dotenv_values
 from time import sleep
 import json
 from P2P_testing import Generate_random_num_id

@@ -61,3 +61,14 @@ and send a message telling the room_status
 This might be easier
 
 Then the actual game will be a shit show, P2P is a genuine nightmare
+
+
+client side: server.recv
+
+
+
+server sends to the client whos turn it is
+Client[0]
+
+only when client side gets the mssage they can input anything
+
