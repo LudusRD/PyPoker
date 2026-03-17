@@ -3,6 +3,7 @@ from os import environ
 import threading
 from time import sleep
 import json
+import random
 from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -37,6 +38,9 @@ def Get_client_using_id(id):
         if client['id'] == id:
             return client
 
+#Tracks active lobbies by Room_id, each lobby contains a list of players and the current bet
+Active_lobbies = {}
+
 def Match_lobby_requests(Packet,client):
     #Lobby handling
     global server
@@ -54,6 +58,9 @@ def Match_lobby_requests(Packet,client):
             Cl_Room['ingame'] = True
             Cl_Room['id'] = specs['id']
             client.sendto("Sucess".encode(),(Packet['Ip'],6677))
+            #Add joining player to Active_lobbies so Lobby_handling can see them
+            Client_dict = Get_client_using_id(Packet['id'])
+            Active_lobbies[specs['id']]['Players'].append(Client_dict)
         #Unsustainable as fuck
 
     elif Request == "Create_lobby":
@@ -65,6 +72,13 @@ def Match_lobby_requests(Packet,client):
         Cl_Room['ingame'] = True
         Cl_Room['Is_host'] = True
         Cl_Room['id'] = Room_id
+        #Create lobby entry and add host as first player
+        Client_dict = Get_client_using_id(Packet['id'])
+        Active_lobbies[Room_id] = {'Players': [Client_dict], 'current_bet': 0}
+        #Start lobby thread so it can wait for "start game"
+        lobby_thread = threading.Thread(target=Lobby_handling, args=(Active_lobbies[Room_id],))
+        lobby_thread.daemon = True
+        lobby_thread.start()
 
     elif Request == "Init":
         Standby_clients.append(Packet)
@@ -72,12 +86,62 @@ def Match_lobby_requests(Packet,client):
         Client_dict.update({"Socket_obj":client})
         client.sendto("Initialized".encode(),(Packet['Ip'],6677))
 
+#Roman compare Packet['Request'] to the different actions you can do
+#//Done
+def Create_deck():
+    suits = ['♠', '♥', '♦', '♣']
+    ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
+    deck = [{'rank': r, 'suit': s} for s in suits for r in ranks]
+    random.shuffle(deck)
+    return deck
+
+#Distributes cards to players, returns the remaining deck. Also updates player dicts with their cards
+def Distribute_cards(players):
+    deck = Create_deck()
+    for player in players:
+        player['Cards'] = [deck.pop(), deck.pop()]
+    return deck
+
+#Main game loop, it will be called when the host starts the game
 def Match_ingame_requests(Packet,client,lobby):
+    Request = Packet['Request']
+    player_ip = Packet['Ip']
 
-    #Roman compare Packet['Request'] to the different actions you can do
+    if Request == "fold":
+        for player in lobby['Players']:
+            if player['id'] == Packet['id']:
+                player['folded'] = True
+        client.sendto("Folded".encode(),(player_ip,6677))
 
+    elif Request == "check":
+        client.sendto("Checked".encode(),(player_ip,6677))
 
-    pass
+    elif Request == "bet":
+        bet_amount = Packet['Rq_spec'].get('amount', 0)
+        lobby['current_bet'] = bet_amount
+        for player in lobby['Players']:
+            if player['id'] == Packet['id']:
+                player['chips'] = player.get('chips', 1000) - bet_amount
+        #Tell everyone about new bet
+        for player in lobby['Players']:
+            player['Socket_obj'].sendto(
+                f"Bet:{bet_amount}".encode(),
+                (player['Ip'],6677)
+            )
+
+    elif Request == "call":
+        #If no current bet, can't call
+        if lobby.get('current_bet', 0) == 0:
+            client.sendto("No_bet".encode(),(player_ip,6677))
+        else:
+            bet_amount = lobby['current_bet']
+            for player in lobby['Players']:
+                if player['id'] == Packet['id']:
+                    player['chips'] = player.get('chips', 1000) - bet_amount
+            client.sendto(f"Called:{bet_amount}".encode(),(player_ip,6677))
+
+    else:
+        client.sendto("Unknown_request".encode(),(player_ip,6677))
 
 def Lobby_handling(Lobby):
     while True:
@@ -85,34 +149,46 @@ def Lobby_handling(Lobby):
         Game_initialized = False
         All_cards = []
 
-
-        for player in Lobby['Players']:
-                # Might as well predetermine the winner and not let them know.
-
+        #Wait for host to start game
+        #Poll all players until host sends "start game"
+        while Game_started == False:
+            for player in Lobby['Players']:
                 player['Cards'] = []
-                socket = player['Socket_obj']
-                Packet, addr = socket.recvfrom(2048)
-                if Packet['Request'] == "start game":
-                    if Packet['Room']['Is_host'] == True:
-                        Game_started = True
-                        socket.sendto("Sucess".encode(),(player['Ip'],6677))
-                    else:
-                        socket.sendto("Not_host".encode(),(player['Ip'],6677))
+                sock = player['Socket_obj']
+                try:
+                    sock.settimeout(0.1)
+                    raw, addr = sock.recvfrom(2048)
+                    Packet = json.loads(raw.decode())
+                    if Packet['Request'] == "start game":
+                        if Packet['Room']['Is_host'] == True:
+                            Game_started = True
+                            sock.sendto("Sucess".encode(),(player['Ip'],6677))
+                        else:
+                            sock.sendto("Not_host".encode(),(player['Ip'],6677))
+                except socket.timeout:
+                    pass #no message yet
 
         while Game_started == True:
             if Game_initialized == False:
+                Lobby['current_bet'] = 0  #Bet reset
+                deck = Distribute_cards(Lobby['Players'])
                 for player in Lobby['Players']:
-                    player['Cards'] = [] #Distribute cards  (Roman)
-                    socket = player['Socket_obj']
-                    socket.sendto("Lobby started".encode(),(player['Ip'],6677))
-                    #Socket sendto (Cads.encode()) (if its list convert to json using json.dumps)
+                    sock = player['Socket_obj']
+                    sock.sendto("Lobby started".encode(),(player['Ip'],6677))
+                    sock.sendto(json.dumps(player['Cards']).encode(),(player['Ip'],6677))
+                Game_initialized = True
 
+            #This part i basicly gambeled on, i hope it works
+            #It suppose to poll all players for their actions, then process them and send the results back to the clients
             for player in Lobby['Players']:
-                #socket.sendto("Your cards are: ") ignore this
-
-                # send to a 
-
-                pass
+                sock = player['Socket_obj']
+                try:
+                    sock.settimeout(0.1)
+                    raw, addr = sock.recvfrom(2048)
+                    Packet = json.loads(raw.decode())
+                    Match_ingame_requests(Packet, sock, Lobby)
+                except socket.timeout:
+                    pass #Player hasn't sent anything yet
     
 
 #Listens for Capacity number players
@@ -149,4 +225,3 @@ while True:
         except Exception as e:
             print("Request error 1")
             print(e)
-

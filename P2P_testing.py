@@ -2,7 +2,6 @@ import json
 from os import path
 import random
 import socket
-import rich
 
 Hostname = socket.gethostname()
 Ip_addr = socket.gethostbyname(Hostname)

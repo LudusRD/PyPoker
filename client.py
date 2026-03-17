@@ -1,6 +1,7 @@
 import socket
 from os import environ,getenv
-from dotenv import load_dotenv,dotenv_values
+#Im lazy to install it
+#from dotenv import load_dotenv,dotenv_values
 from time import sleep
 import json
 from P2P_testing import Generate_random_num_id
@@ -44,8 +45,15 @@ while Connected == False:
     except ConnectionError:
         print("Idk, some error in connection")
     except OSError as e:
-        print("Already connected")
-        print(e)
+        if e.errno == 11001:
+            print("Learn how to type IP, you dummy")
+        elif e.errno == 10048:
+            print("Already connected")
+        elif e.errno == 10060:
+            print("Connection timed out, server unrespondant")
+        else:
+            print("We unfortynately got an error. We how now idea what is it, but here it is:")
+            print(e)
         break
     except:
         print("damn, i don't know what error you got?")
@@ -101,6 +109,15 @@ def Join_room():
         else:
             Browsing_lobbies = False
             break
+#
+def Send_action(action, amount=None):
+    global Packet
+    Packet['Request'] = action
+    if amount is not None:
+        Packet['Rq_spec'] = {'amount': amount}
+    else:
+        Packet['Rq_spec'] = {}
+    return Send_request()
 
 #Packet to send to the server
 Packet = {
@@ -192,25 +209,44 @@ while True:
                 Send_request()
             else:
                 print("invalid choice")
+        #Game loop
+        else:
+            #Receive game start message
+            msg, addr = client.recvfrom(2048)
+            print(msg.decode())
 
+            #Recieve cards
+            cards_data, addr = client.recvfrom(2048)
+            Packet['Cards'] = json.loads(cards_data.decode())
+            print("Your cards:")
+            for card in Packet['Cards']:
+                print(f"  {card['rank']} of {card['suit']}")
 
-            #Maybe just recieve info and don't send a whole ass package
+            #Client's actions
+            while True:
+                print("1. fold")
+                print("2. check")
+                print("3. bet")
+                print("4. call")
+                action_choice = input("")
 
-
-            #Packet['Request'] = "Room_status"
-            #Room_status = json.loads(json.loads(Send_request()))
-            #print("Game started = False")
-            #print("Players: ")
-            #for dict in Room_status:
-            #    print("Player: ")
-            #    for item in dict.items():
-            #        print(item)
-            #    print("")
-            pass
-
-            
-
-
+                if action_choice == "1":
+                    result = Send_action("fold")
+                    print(result)
+                    break
+                elif action_choice == "2":
+                    result = Send_action("check")
+                    print(result)
+                elif action_choice == "3":
+                    amount = int(input("Bet amount: "))
+                    result = Send_action("bet", amount)
+                    print(result)
+                elif action_choice == "4":
+                    amount = int(input("Call amount: "))
+                    result = Send_action("call", amount)
+                    print(result)
+                else:
+                    print("invalid choice")
 
     #client.sendto(("Hello from client".encode()),(Server_ip,6677))
 
