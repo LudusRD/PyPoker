@@ -176,11 +176,14 @@ while True:
                 Room_name = Room_setup()
                 #Reminder for later, Room_setup changes Packet['Request']
                 status = Send_request()
+                print(status)
                 if status[:6] == "Sucess":
                     Packet['Is_host'] = True
                     Packet['Room']['id'] = status[7:]
                     Packet['Room']['Room_name'] = Room_name
                     In_lobby = True
+                else:
+                    print('Create room failed')
             #--__--
             elif Lobby_choice == "3": #Rage quit
                 break
@@ -213,40 +216,44 @@ while True:
         else:
             #Receive game start message
             msg, addr = client.recvfrom(2048)
-            print(msg.decode())
+            msg = msg.decode()
+            print(msg[:13])
 
             #Recieve cards
-            cards_data, addr = client.recvfrom(2048)
-            Packet['Cards'] = json.loads(cards_data.decode())
+            Packet['Cards'] = json.loads(msg[13:])
             print("Your cards:")
             for card in Packet['Cards']:
                 print(f"  {card['rank']} of {card['suit']}")
 
             #Client's actions
             while True:
-                print("1. fold")
-                print("2. check")
-                print("3. bet")
-                print("4. call")
-                action_choice = input("")
+                message = client.recvfrom(2048).decode()
+                print(message)
+                
+                if message == "Your turn":
+                    print("1. fold")
+                    print("2. check")
+                    print("3. bet")
+                    print("4. call")
+                    action_choice = input("")
 
-                if action_choice == "1":
-                    result = Send_action("fold")
-                    print(result)
-                    break
-                elif action_choice == "2":
-                    result = Send_action("check")
-                    print(result)
-                elif action_choice == "3":
-                    amount = int(input("Bet amount: "))
-                    result = Send_action("bet", amount)
-                    print(result)
-                elif action_choice == "4":
-                    amount = int(input("Call amount: "))
-                    result = Send_action("call", amount)
-                    print(result)
-                else:
-                    print("invalid choice")
+                    if action_choice == "1":
+                        result = Send_action("fold")
+                        print(result)
+                        break
+                    elif action_choice == "2":
+                        result = Send_action("check")
+                        print(result)
+                    elif action_choice == "3":
+                        amount = int(input("Bet amount: "))
+                        result = Send_action("bet", amount)
+                        print(result)
+                    elif action_choice == "4":
+                        amount = int(input("Call amount: "))
+                        result = Send_action("call", amount)
+                        print(result)
+                    else:
+                        print("invalid choice")
 
     #client.sendto(("Hello from client".encode()),(Server_ip,6677))
 

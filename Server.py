@@ -5,6 +5,7 @@ from time import sleep
 import json
 import random
 from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match,Check_for_host
+import asyncio
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 Capacity = 4
@@ -12,6 +13,11 @@ Capacity = 4
 
 #reminder to future self: (and roman i guess)
 # If you use firewall it will not be able to recieve anything
+
+# Using selectors module would probably be more efficient than using 
+# asynch functions, but if we use selectors we would have to rewrite
+# alot of server and client logic, and figure out selectors.
+# So witha  2 day deadline maybe not (𖦹﹏𖦹;)
 hostname = socket.gethostname()
 ip = socket.gethostbyname(hostname)
 print(ip)
@@ -24,6 +30,7 @@ def Check_for_connections():
         client,addr = server.accept()
         print(client)
         clients.append((client,addr))
+        asyncio.run(Handle_client_lobby((client,addr)))
 
 
 server.bind((ip,6677))
@@ -76,6 +83,10 @@ def Match_lobby_requests(Packet,client):
         Client_dict = Get_client_using_id(Packet['id'])
         Active_lobbies[Room_id] = {'Players': [Client_dict], 'current_bet': 0}
         #Start lobby thread so it can wait for "start game"
+        for i in clients:
+            if i[0] == client:
+                clients.remove(i)
+                Ingame_clients.append(i)
         lobby_thread = threading.Thread(target=Lobby_handling, args=(Active_lobbies[Room_id],))
         lobby_thread.daemon = True
         lobby_thread.start()
@@ -85,6 +96,9 @@ def Match_lobby_requests(Packet,client):
         Client_dict = Get_client_using_id(Packet['id'])
         Client_dict.update({"Socket_obj":client})
         client.sendto("Initialized".encode(),(Packet['Ip'],6677))
+    
+    else:
+        client.sendto("Invalid code, Error".encode(),(Packet['Ip'],6677))
 
 #Roman compare Packet['Request'] to the different actions you can do
 #//Done
@@ -144,9 +158,9 @@ def Match_ingame_requests(Packet,client,lobby):
         client.sendto("Unknown_request".encode(),(player_ip,6677))
 
 def Lobby_handling(Lobby):
+    Game_started = False
+    Game_initialized = False
     while True:
-        Game_started = False
-        Game_initialized = False
         All_cards = []
 
         #Wait for host to start game
@@ -159,6 +173,7 @@ def Lobby_handling(Lobby):
                     sock.settimeout(0.1)
                     raw, addr = sock.recvfrom(2048)
                     Packet = json.loads(raw.decode())
+                    print(Packet)
                     if Packet['Request'] == "start game":
                         if Check_for_host(Packet['id'],Match=Lobby) == True:
                             Game_started = True
@@ -166,7 +181,8 @@ def Lobby_handling(Lobby):
                         else:
                             sock.sendto("Not_host".encode(),(player['Ip'],6677))
                 except socket.timeout:
-                    pass #no message yet
+                    #The server doesn't need to print, it's too common of an occurance
+                    pass
 
         while Game_started == True:
             if Game_initialized == False:
@@ -174,8 +190,9 @@ def Lobby_handling(Lobby):
                 deck = Distribute_cards(Lobby['Players'])
                 for player in Lobby['Players']:
                     sock = player['Socket_obj']
-                    sock.sendto("Lobby started".encode(),(player['Ip'],6677))
-                    sock.sendto(json.dumps(player['Cards']).encode(),(player['Ip'],6677))
+                    sock.sendto(f"Lobby started{json.dumps(player['Cards'])}".encode(),(player['Ip'],6677))
+                    #Roman i removed the second sendto because it sends so fast that it becomes 1 message either way.
+                    # (quandale dingle here,  rehehehehehehehe)
                 Game_initialized = True
 
             #This part i basicly gambeled on, i hope it works
@@ -183,7 +200,11 @@ def Lobby_handling(Lobby):
             for player in Lobby['Players']:
                 sock = player['Socket_obj']
                 try:
-                    sock.settimeout(0.1)
+                    player.sendto("Your turn".encode(),(player['Ip'],6677))
+                    #sock.settimeout(0.1) Timeout not needed, poker is turn based either way
+                    for waiter in Lobby['Players']:
+                        if waiter != player:
+                            waiter['Socket_obj'].sendto(f"Waiting for player{player['Name']}".encode(),(waiter['Ip'],6677))
                     raw, addr = sock.recvfrom(2048)
                     Packet = json.loads(raw.decode())
                     Match_ingame_requests(Packet, sock, Lobby)
@@ -198,6 +219,9 @@ Connection_thread = threading.Thread(target=Check_for_connections)
 Connection_thread.start()
 
 print("pluh")
+Afk_clients = [
+
+]
 
 Standby_clients = [
 
@@ -209,6 +233,30 @@ Ingame_clients = [
 
 #--__--              --__--
 
+async def Handle_client_lobby(client):
+    global clients
+    global Afk_clients
+    while client in clients:
+        try: 
+            Packet,addr = client[0].recvfrom(2048)
+            Packet = json.loads(Packet.decode())
+            print(Packet)
+            print(addr)
+            Match_lobby_requests(Packet,client[0])
+        except WindowsError as e:
+            print("Client disconnected or unresponsive")
+            print(f'error:{e}')
+            clients.remove(client) 
+            Afk_clients.append(client)
+        except Exception as e:
+            print("Request error 1")
+            print(e)
+
+# No need to do async for ingame clients
+# Since they take turns either way
+
+
+'''
 while True:
     for client in clients:
         #Takes string request and loads in json format
@@ -218,10 +266,13 @@ while True:
             print(Packet)
             print(addr)
             Match_lobby_requests(Packet,client[0])
-            sleep(0.5)
-        except WindowsError:
+        except WindowsError as e:
             print("Client disconnected or unresponsive")
-            clients.remove(client)           
+            print(f'error:{e}')
+            clients.remove(client) 
+            Afk_clients.append(client)
         except Exception as e:
             print("Request error 1")
             print(e)
+'''
+

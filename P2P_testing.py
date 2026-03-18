@@ -173,7 +173,7 @@ if path.exists(Json_path) == False:
 
 Set_local_player("Adam")
 #print(local_player)
-#Hard_reset_json()
+Hard_reset_json()
 #Create_match("Test_room3",local_player)
 
 Print_match_list(Get_return_matches(True))
