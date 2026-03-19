@@ -5,7 +5,6 @@ from time import sleep
 import json
 import random
 from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match,Check_for_host
-import asyncio
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 Capacity = 4
@@ -32,10 +31,12 @@ def Check_for_connections():
         clients.append((client,addr))
         print(clients)
         Thread = threading.Thread(target=Handle_client_lobby,kwargs={"client": (client,addr)})
-        Thread.deamon = True
+        Thread.daemon = True
         Thread.start()
         # Figure out this later, for now use the inefficient threading method
         #asyncio.create_task(Handle_client_lobby((client,addr)))
+        #Done actually
+        #asyncio.run(Handle_client_lobby((client,addr)))
 
 
 server.bind((ip,6677))
@@ -50,8 +51,25 @@ def Get_client_using_id(id):
         if client['id'] == id:
             return client
 
-#Tracks active lobbies by Room_id, each lobby contains a list of players and the current bet
-Active_lobbies = {}
+Started_lobby_ids = set()
+
+def Poll_json_for_lobbies():
+    while True:
+        sleep(3)
+        matches = Get_return_matches(raw=True)
+        for match in matches:
+            room_id = match['Room_id']
+            if room_id not in Started_lobby_ids:
+                Started_lobby_ids.add(room_id)
+                players_in_lobby = []
+                for player_data in match['Players']:
+                    client_dict = Get_client_using_id(player_data['id'])
+                    if client_dict:
+                        players_in_lobby.append(client_dict)
+                lobby = {'Players': players_in_lobby, 'current_bet': 0}
+                lobby_thread = threading.Thread(target=Lobby_handling, args=(lobby,))
+                lobby_thread.daemon = True
+                lobby_thread.start()
 
 def Match_lobby_requests(Packet,client):
     #Lobby handling
@@ -71,13 +89,6 @@ def Match_lobby_requests(Packet,client):
             Cl_Room['ingame'] = True
             Cl_Room['id'] = specs['id']
             client.sendto("Sucess".encode(),(Packet['Ip'],6677))
-            #Add joining player to Active_lobbies so Lobby_handling can see them
-            Client_dict = Get_client_using_id(Packet['id'])
-            Active_lobbies[specs['id']]['Players'].append(Client_dict)
-            for i in clients:
-                if i[0] == client:
-                    clients.remove(i)
-                    Ingame_clients.append(i)
         #Unsustainable as fuck
 
     elif Request == "Create_lobby":
@@ -89,17 +100,11 @@ def Match_lobby_requests(Packet,client):
         Cl_Room['ingame'] = True
         Cl_Room['Is_host'] = True
         Cl_Room['id'] = Room_id
-        #Create lobby entry and add host as first player
-        Client_dict = Get_client_using_id(Packet['id'])
-        Active_lobbies[Room_id] = {'Players': [Client_dict], 'current_bet': 0}
         #Start lobby thread so it can wait for "start game"
         for i in clients:
             if i[0] == client:
                 clients.remove(i)
                 Ingame_clients.append(i)
-        lobby_thread = threading.Thread(target=Lobby_handling, args=(Active_lobbies[Room_id],))
-        lobby_thread.daemon = True
-        lobby_thread.start()
 
     elif Request == "Init":
         Standby_clients.append(Packet)
@@ -177,7 +182,6 @@ def Lobby_handling(Lobby):
         #Wait for host to start game
         #Poll all players until host sends "start game"
         while Game_started == False:
-            #Lobby = Active_lobbies[Lobby['Room_id']]
             for player in Lobby['Players']:
                 player['Cards'] = []
                 sock = player['Socket_obj']
@@ -212,7 +216,7 @@ def Lobby_handling(Lobby):
             for player in Lobby['Players']:
                 sock = player['Socket_obj']
                 try:
-                    player.sendto("Your turn".encode(),(player['Ip'],6677))
+                    sock.sendto("Your turn".encode(),(player['Ip'],6677))
                     #sock.settimeout(0.1) Timeout not needed, poker is turn based either way
                     for waiter in Lobby['Players']:
                         if waiter != player:
@@ -245,6 +249,9 @@ Ingame_clients = [
 
 ]
 
+Poll_thread = threading.Thread(target=Poll_json_for_lobbies)
+Poll_thread.daemon = True
+Poll_thread.start()
 
 #--__--              --__--
 
@@ -291,4 +298,3 @@ while True:
             print("Request error 1")
             print(e)
 '''
-

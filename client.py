@@ -114,6 +114,8 @@ def Join_room():
                 Packet['Room']['ingame'] = True
                 Packet['Room']['id'] = id
                 In_lobby = True
+            else:
+                print("Join failed")
         #Else goes back to main page
         else:
             Browsing_lobbies = False
@@ -159,8 +161,7 @@ while True:
     if In_lobby == False:
         #Main screen where you can join, create and exit
         if Browsing_lobbies == True:
-            #Join_room()
-            pass
+            Join_room()
         else:
             print("1. Check/join Available lobbies")
             print("2. Create Lobby")
@@ -178,7 +179,7 @@ while True:
                         print(item)
                     print("")
                 Browsing_lobbies = True
-                Join_room()  #Join lobby or not
+                #Join_room()  #Join lobby or not
             
             #sends request, server changes player variable 
             elif Lobby_choice == "2":  #Setup lobby

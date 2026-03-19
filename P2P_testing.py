@@ -139,7 +139,7 @@ def Join_match(Room_id,client,Password=None):
                 return "Client in different lobby"
         #.
         if Room == None:
-            if str(match['Room_id']) == Room_id:
+            if match['Room_id'] == Room_id:
                 Room = match 
     if Room == None:
         print("!!Invalid Room Id!!")
@@ -165,7 +165,7 @@ def Display_players(Room_id):
             print("Players in Room Are:")
             for Player in match['Players']:
                 print(f"Player: {Player['Name']}")
-                print(f"Is_host: {Player['Is_host']}")
+                print(f"Is_host: {Player['Room']['Is_host'] == True}")
                 print("")
 
 if path.exists(Json_path) == False:
