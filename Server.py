@@ -30,7 +30,12 @@ def Check_for_connections():
         client,addr = server.accept()
         print(client)
         clients.append((client,addr))
-        asyncio.run(Handle_client_lobby((client,addr)))
+        print(clients)
+        Thread = threading.Thread(target=Handle_client_lobby,kwargs={"client": (client,addr)})
+        Thread.deamon = True
+        Thread.start()
+        # Figure out this later, for now use the inefficient threading method
+        #asyncio.create_task(Handle_client_lobby((client,addr)))
 
 
 server.bind((ip,6677))
@@ -50,6 +55,7 @@ Active_lobbies = {}
 
 def Match_lobby_requests(Packet,client):
     #Lobby handling
+    print("pluh")
     global server
     Request = Packet['Request']
     if Request == 'Get_lobbies':
@@ -68,6 +74,10 @@ def Match_lobby_requests(Packet,client):
             #Add joining player to Active_lobbies so Lobby_handling can see them
             Client_dict = Get_client_using_id(Packet['id'])
             Active_lobbies[specs['id']]['Players'].append(Client_dict)
+            for i in clients:
+                if i[0] == client:
+                    clients.remove(i)
+                    Ingame_clients.append(i)
         #Unsustainable as fuck
 
     elif Request == "Create_lobby":
@@ -163,9 +173,11 @@ def Lobby_handling(Lobby):
     while True:
         All_cards = []
 
+
         #Wait for host to start game
         #Poll all players until host sends "start game"
         while Game_started == False:
+            #Lobby = Active_lobbies[Lobby['Room_id']]
             for player in Lobby['Players']:
                 player['Cards'] = []
                 sock = player['Socket_obj']
@@ -205,10 +217,13 @@ def Lobby_handling(Lobby):
                     for waiter in Lobby['Players']:
                         if waiter != player:
                             waiter['Socket_obj'].sendto(f"Waiting for player{player['Name']}".encode(),(waiter['Ip'],6677))
+                    #sock.settimeout(30)
                     raw, addr = sock.recvfrom(2048)
                     Packet = json.loads(raw.decode())
                     Match_ingame_requests(Packet, sock, Lobby)
                 except socket.timeout:
+                    #player['folded'] = True
+                    #sock.sendto("Folded".encode(),(player['Id'],6677)) #Hey, remember to implement folding
                     pass #Player hasn't sent anything yet
     
 
@@ -233,24 +248,25 @@ Ingame_clients = [
 
 #--__--              --__--
 
-async def Handle_client_lobby(client):
-    global clients
+def Handle_client_lobby(client):
     global Afk_clients
-    while client in clients:
-        try: 
-            Packet,addr = client[0].recvfrom(2048)
-            Packet = json.loads(Packet.decode())
-            print(Packet)
-            print(addr)
-            Match_lobby_requests(Packet,client[0])
-        except WindowsError as e:
-            print("Client disconnected or unresponsive")
-            print(f'error:{e}')
-            clients.remove(client) 
-            Afk_clients.append(client)
-        except Exception as e:
-            print("Request error 1")
-            print(e)
+    global clients
+    afk = False
+    while True:
+        if afk == False:
+            try: 
+                Packet,addr = client[0].recvfrom(2048)
+                Packet = json.loads(Packet.decode())
+                print(Packet)
+                print(client[0])
+                Match_lobby_requests(Packet,client[0])
+            except WindowsError as e:
+                print("Client disconnected or unresponsive")
+                print(f'error:{e}')
+                afk = True
+            except Exception as e:
+                print("Request error 1")
+                print(e)
 
 # No need to do async for ingame clients
 # Since they take turns either way

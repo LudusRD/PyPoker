@@ -5,7 +5,7 @@ from dotenv import load_dotenv,dotenv_values
 from time import sleep
 import json
 from P2P_testing import Generate_random_num_id
-
+import asyncio
 
 # Initial connection __----__ 
 host_name = socket.gethostname()
@@ -62,6 +62,13 @@ while Connected == False:
 
 print(client)
 #-
+
+async def Check_recv(socket):
+    message = socket.recv(2048)
+    return message
+    
+
+
 def Send_request():
     global Packet
     Request = json.dumps(Packet)    
@@ -99,12 +106,14 @@ def Join_room():
 
         #Sends room join request
         if id.isnumeric():
+            id = int(id)
             Packet['Request'] = "Join_room"
             Packet['Rq_spec'] = {"id":id,"Password":Password}
             Result = Send_request()
             if Result == "Sucess":
                 Packet['Room']['ingame'] = True
                 Packet['Room']['id'] = id
+                In_lobby = True
         #Else goes back to main page
         else:
             Browsing_lobbies = False
@@ -229,7 +238,7 @@ while True:
             while True:
                 message = client.recvfrom(2048).decode()
                 print(message)
-                
+
                 if message == "Your turn":
                     print("1. fold")
                     print("2. check")
