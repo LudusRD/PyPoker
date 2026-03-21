@@ -50,6 +50,24 @@ def Create_match(Room_name,Host,Password=None):
             json.dump(data,json_file,indent=4)
         return match['Room_id']
 
+def Delete_match(Room_id):
+    match = find_room(Room_id)
+    with open(Json_path,'r') as json_file:
+        data = json.load(json_file)
+
+    data['Matches'].remove(match)
+    json_file.seek(0)
+
+    with open(Json_path,'w') as json_file:
+        json.dump(data,json_file,indent=4)
+
+
+def find_room(Room_id):
+    with open(Json_path,'r') as json_file:
+        for match in json_file['Matches']:
+            if match['Room_id'] == Room_id:
+                return match
+
 local_player = {
     "Name":"",
     "id":"",

@@ -6,6 +6,10 @@ from time import sleep
 import json
 from P2P_testing import Generate_random_num_id
 import asyncio
+import signal
+import threading
+import keyboard
+from pynput.keyboard import Listener, Key
 
 # Initial connection __----__ 
 host_name = socket.gethostname()
@@ -13,6 +17,41 @@ ip = socket.gethostbyname(host_name)
 
 #-
 print("Welcome to PyPoker, don't judge me for bad P2P networking")
+
+
+global_char_lst = []
+Inp_interupted = False
+
+def on_unp_press(key):
+    if Inp_interupted == True:
+        print("Input interupted")
+        return False
+
+    if hasattr(key,'char') and key.char != None:
+        global_char_lst.append(key.char)
+        print(''.join(global_char_lst),end='\r')
+    elif key == Key.space:
+        global_char_lst.append(' ')
+        print(''.join(global_char_lst),end='\r')
+    elif key == Key.backspace:
+        if len(global_char_lst) > 0:
+            global_char_lst.pop()
+        print(' '*(len(global_char_lst)+1),end='\r')
+        print(''.join(global_char_lst),end='\r')
+    elif key == Key.enter:
+        return False
+
+
+async def Unpaused_input():
+    global global_char_lst
+    global_char_lst = []
+    with Listener(on_press=on_unp_press) as listener:
+        listener.join()
+    return ''.join(global_char_lst)
+
+asyncio.run(Unpaused_input())
+
+#Interuptable_input(Timeout=1)
 
 while True:
     print("1. Find server from environment file")
@@ -63,9 +102,6 @@ while Connected == False:
 print(client)
 #-
 
-async def Check_recv(socket):
-    message = socket.recv(2048)
-    return message
     
 
 
@@ -85,7 +121,7 @@ def Send_request():
 def Room_setup():
     global Packet
     Name = input("Input Room name: ")
-    Password = input("*optional, input password")
+    Password = input("*optional, input password: ")
     if Password == "": Password = None
     #-
     Packet['Request'] = 'Create_lobby'
@@ -99,14 +135,14 @@ def Join_room():
 
     #
     while True:
-        print("Input the Id of the room you want to join")
-        print("Or input exit")
-        id = input("Input the Id of the room you want to join")
-        Password = input("Input password(if password is none doesn't matter)")
+        print("")
+        print("Input Exit to exit or,")
+        id = input("Input the Id of the room you want to join: ")
 
         #Sends room join request
         if id.isnumeric():
             id = int(id)
+            Password = input("Input password(if password is none doesn't matter) :")
             Packet['Request'] = "Join_room"
             Packet['Rq_spec'] = {"id":id,"Password":Password}
             Result = Send_request()
@@ -114,6 +150,7 @@ def Join_room():
                 Packet['Room']['ingame'] = True
                 Packet['Room']['id'] = id
                 In_lobby = True
+                break
             else:
                 print("Join failed")
         #Else goes back to main page
@@ -148,7 +185,7 @@ Packet = {
     }
 }
 
-Packet['Name'] = input("Please input a suitable Name, (there are no curse filters)")
+Packet['Name'] = input("Please input a suitable Name, (there are no curse filters): ")
 Packet['Request'] = "Init"
 Send_request()
 
@@ -215,6 +252,10 @@ while True:
                     print("Only host can start")
                 else:
                     print("stargame failed")
+            if Lobby_choice == "2":
+                Packet['Request'] = "close lobby"
+                answer = Send_request()
+                In_lobby = False
 
                 
             elif Lobby_choice == "2":
@@ -245,7 +286,8 @@ while True:
                     print("2. check")
                     print("3. bet")
                     print("4. call")
-                    action_choice = input("")
+                    action_choice = input()
+
 
                     if action_choice == "1":
                         result = Send_action("fold")
