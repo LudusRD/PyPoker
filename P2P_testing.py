@@ -37,6 +37,7 @@ def Create_match(Room_name,Host,Password=None):
             "Full_lobby":False,
             "Has_started":False,
             "Is_open":True,
+            "current_bet":0,
             "Players":[
                 Host
             ]
@@ -205,12 +206,12 @@ def Display_players(Room_id):
 if path.exists(Json_path) == False:
     Setup_Logic_Json()
 
-Set_local_player("Adam")
+#Set_local_player("Adam")
 #print(local_player)
 #Hard_reset_json()
 #Create_match("Test_room3",local_player)
 
-Print_match_list(Get_return_matches(True))
+#Print_match_list(Get_return_matches(True))
 
 #Join_match(2,local_player)
 

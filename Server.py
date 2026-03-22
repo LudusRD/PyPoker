@@ -4,11 +4,11 @@ import threading
 from time import sleep
 import json
 import random
-from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match,Check_for_host,Delete_match,Leave_match
+from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match,Check_for_host,Delete_match,Leave_match,Hard_reset_json
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 Capacity = 4
-
+Hard_reset_json()
 
 #reminder to future self: (and roman i guess)
 # If you use firewall it will not be able to recieve anything
@@ -29,7 +29,7 @@ def Check_for_connections():
         client,addr = server.accept()
         print(client)
         clients.append((client,addr))
-        print(clients)
+        #print(clients)
         Thread = threading.Thread(target=Handle_client_lobby,kwargs={"client": (client,addr)})
         Thread.daemon = True
         Thread.start()
@@ -66,7 +66,7 @@ def Poll_json_for_lobbies():
                     client_dict = Get_client_using_id(player_data['id'])
                     if client_dict:
                         players_in_lobby.append(client_dict)
-                lobby = {'Players': players_in_lobby, 'current_bet': 0}
+                lobby = match
                 lobby_thread = threading.Thread(target=Lobby_handling, args=(lobby,))
                 lobby_thread.daemon = True
                 lobby_thread.start()
@@ -185,8 +185,8 @@ def Lobby_handling(Lobby):
         while Game_started == False:
             for player in Lobby['Players']:
                 player['Cards'] = []
-                sock = player['Socket_obj']
                 try:
+                    sock = Get_client_using_id(player['id'])['Socket_obj']
                     sock.settimeout(0.1)
                     raw, addr = sock.recvfrom(2048)
                     Packet = json.loads(raw.decode())
@@ -205,32 +205,37 @@ def Lobby_handling(Lobby):
                             break
                         else:
                             sock.sendto("f".encode(),(player['Ip'],6677))
-                            Leave_match(Lobby['Room_id'],player)
+                            Leave_match(Lobby['Room_id'])
                 except socket.timeout:
                     #The server doesn't need to print, it's too common of an occurance
                     pass
+                except Exception as e:
+                    print(e)
         while Game_started == True:
             if Game_initialized == False:
                 Lobby['current_bet'] = 0  #Bet reset
                 deck = Distribute_cards(Lobby['Players'])
                 for player in Lobby['Players']:
-                    sock = player['Socket_obj']
-                    sock.sendto(f"Lobby started{json.dumps(player['Cards'])}".encode(),(player['Ip'],6677))
+                    try:
+                        sock = Get_client_using_id(player['id'])['Socket_obj'] #Gets form dict instead of json
+                        sock.sendto(f"Lobby started{json.dumps(player['Cards'])}".encode(),(player['Ip'],6677))
+                    except Exception as e:
+                        print(e)
                     #Roman i removed the second sendto because it sends so fast that it becomes 1 message either way.
                     # (quandale dingle here,  rehehehehehehehe)
                 Game_initialized = True
+                sleep(3) #To make sure client gets 1 msg at a time
 
             #This part i basicly gambeled on, i hope it works
             #It suppose to poll all players for their actions, then process them and send the results back to the clients
-            for player in Lobby['Players']:
-                sock = player['Socket_obj']
+            for player in Lobby['Players']: 
                 try:
+                    sock = Get_client_using_id(player['id'])['Socket_obj'] #Gets form dict instead of json
                     sock.sendto("Your turn".encode(),(player['Ip'],6677))
-                    #sock.settimeout(0.1) Timeout not needed, poker is turn based either way
                     for waiter in Lobby['Players']:
                         if waiter != player:
                             waiter['Socket_obj'].sendto(f"Waiting for player{player['Name']}".encode(),(waiter['Ip'],6677))
-                    #sock.settimeout(30)
+                    sock.settimeout(30)
                     raw, addr = sock.recvfrom(2048)
                     Packet = json.loads(raw.decode())
                     Match_ingame_requests(Packet, sock, Lobby)
@@ -238,6 +243,8 @@ def Lobby_handling(Lobby):
                     #player['folded'] = True
                     #sock.sendto("Folded".encode(),(player['Id'],6677)) #Hey, remember to implement folding
                     pass #Player hasn't sent anything yet
+                except Exception as e:
+                    print(e)
     
 
 #Listens for Capacity number players
