@@ -76,45 +76,48 @@ def Match_lobby_requests(Packet,client):
     #Lobby handling
     print("pluh")
     global server
-    Request = Packet['Request']
-    if Request == 'Get_lobbies':
-        Lobbies = json.dumps(Get_return_matches())
-        client.sendto(Lobbies.encode(),(Packet['Ip'],6677))
+    try:
+        Request = Packet['Request']
+        if Request == 'Get_lobbies':
+            Lobbies = json.dumps(Get_return_matches())
+            client.sendto(Lobbies.encode(),(Packet['Ip'],6677))
 
-    elif Request == "Join_room":
-        specs = Packet['Rq_spec']
-        result = Join_match(specs['id'],Packet,specs['Password'])
-        #Changes serverside client variables, fuck this is a godamn mess
-        if result[:6] == "Joined":
+        elif Request == "Join_room":
+            specs = Packet['Rq_spec']
+            result = Join_match(specs['id'],Packet,specs['Password'])
+            #Changes serverside client variables, fuck this is a godamn mess
+            if result[:6] == "Joined":
+                Cl_Room = Get_client_using_id(Packet['id'])['Room']
+                Cl_Room['ingame'] = True
+                Cl_Room['id'] = specs['id']
+                client.sendto("Sucess".encode(),(Packet['Ip'],6677))
+            #Unsustainable as fuck
+
+        elif Request == "Create_lobby":
+            Specs = Packet['Rq_spec']
+            Room_id = Create_match(Specs['Name'],Packet,Specs['Password'])
+            client.sendto(f"Sucess:{Room_id}".encode(),(Packet['Ip'],6677))
+            #Changes serverside client variables
             Cl_Room = Get_client_using_id(Packet['id'])['Room']
             Cl_Room['ingame'] = True
-            Cl_Room['id'] = specs['id']
-            client.sendto("Sucess".encode(),(Packet['Ip'],6677))
-        #Unsustainable as fuck
+            Cl_Room['Is_host'] = True
+            Cl_Room['id'] = Room_id
+            #Start lobby thread so it can wait for "start game"
+            for i in clients:
+                if i[0] == client:
+                    clients.remove(i)
+                    Ingame_clients.append(i)
 
-    elif Request == "Create_lobby":
-        Specs = Packet['Rq_spec']
-        Room_id = Create_match(Specs['Name'],Packet,Specs['Password'])
-        client.sendto(f"Sucess:{Room_id}".encode(),(Packet['Ip'],6677))
-        #Changes serverside client variables
-        Cl_Room = Get_client_using_id(Packet['id'])['Room']
-        Cl_Room['ingame'] = True
-        Cl_Room['Is_host'] = True
-        Cl_Room['id'] = Room_id
-        #Start lobby thread so it can wait for "start game"
-        for i in clients:
-            if i[0] == client:
-                clients.remove(i)
-                Ingame_clients.append(i)
-
-    elif Request == "Init":
-        Standby_clients.append(Packet)
-        Client_dict = Get_client_using_id(Packet['id'])
-        Client_dict.update({"Socket_obj":client})
-        client.sendto("Initialized".encode(),(Packet['Ip'],6677))
-    
-    else:
-        client.sendto("Invalid code, Error".encode(),(Packet['Ip'],6677))
+        elif Request == "Init":
+            Standby_clients.append(Packet)
+            Client_dict = Get_client_using_id(Packet['id'])
+            Client_dict.update({"Socket_obj":client})
+            client.sendto("Initialized".encode(),(Packet['Ip'],6677))
+        
+        else:
+            client.sendto("Invalid code, Error".encode(),(Packet['Ip'],6677))
+    except Exception as e:
+        print(e)      
 
 #Roman compare Packet['Request'] to the different actions you can do
 #//Done
@@ -134,44 +137,48 @@ def Distribute_cards(players):
 
 #Main game loop, it will be called when the host starts the game
 def Match_ingame_requests(Packet,client,lobby):
-    Request = Packet['Request']
-    player_ip = Packet['Ip']
+    try:
+        Request = Packet['Request']
+        player_ip = Packet['Ip']
+        
+        if Request == "fold":
+            for player in lobby['Active_players']:
+                if player['id'] == Packet['id']:
+                    player['folded'] = True
+                    P2P_testing.Transfer_player_state(lobby,player,'Active_players','Players')
+            client.sendto("Folded".encode(),(player_ip,6677))
 
-    if Request == "fold":
-        for player in lobby['Players']:
-            if player['id'] == Packet['id']:
-                player['folded'] = True
-        client.sendto("Folded".encode(),(player_ip,6677))
+        elif Request == "check":
+            client.sendto("Checked".encode(),(player_ip,6677))
 
-    elif Request == "check":
-        client.sendto("Checked".encode(),(player_ip,6677))
-
-    elif Request == "bet":
-        bet_amount = Packet['Rq_spec'].get('amount', 0)
-        lobby['current_bet'] = bet_amount
-        for player in lobby['Players']:
-            if player['id'] == Packet['id']:
-                player['chips'] = player.get('chips', 1000) - bet_amount
-        #Tell everyone about new bet
-        for player in lobby['Players']:
-            player['Socket_obj'].sendto(
-                f"Bet:{bet_amount}".encode(),
-                (player['Ip'],6677)
-            )
-
-    elif Request == "call":
-        #If no current bet, can't call
-        if lobby.get('current_bet', 0) == 0:
-            client.sendto("No_bet".encode(),(player_ip,6677))
-        else:
-            bet_amount = lobby['current_bet']
-            for player in lobby['Players']:
+        elif Request == "bet":
+            bet_amount = Packet['Rq_spec'].get('amount', 0)
+            lobby['current_bet'] = bet_amount
+            for player in lobby['Active_players']:
                 if player['id'] == Packet['id']:
                     player['chips'] = player.get('chips', 1000) - bet_amount
-            client.sendto(f"Called:{bet_amount}".encode(),(player_ip,6677))
+            #Tell everyone about new bet
+            for player in lobby['Active_players']:
+                client.sendto(
+                    f"Bet:{bet_amount}".encode(),
+                    (player['Ip'],6677)
+                )
 
-    else:
-        client.sendto("Unknown_request".encode(),(player_ip,6677))
+        elif Request == "call":
+            #If no current bet, can't call
+            if lobby.get('current_bet', 0) == 0:
+                client.sendto("No_bet".encode(),(player_ip,6677))
+            else:
+                bet_amount = lobby['current_bet']
+                for player in lobby['Players']:
+                    if player['id'] == Packet['id']:
+                        player['chips'] = player.get('chips', 1000) - bet_amount
+                client.sendto(f"Called:{bet_amount}".encode(),(player_ip,6677))
+
+        else:
+            client.sendto("Unknown_request".encode(),(player_ip,6677))
+    except Exception as e:
+        print(e)
 
 def Lobby_handling(Lobby):
     Game_started = False
@@ -227,7 +234,7 @@ def Lobby_handling(Lobby):
                     #Roman i removed the second sendto because it sends so fast that it becomes 1 message either way.
                     # (quandale dingle here,  rehehehehehehehe)
                 Game_initialized = True
-                P2P_testing.Transfer_player_state(Lobby,Lobby['Players'],'Players','Active_players')
+                Lobby = P2P_testing.Transfer_player_state(Lobby,Lobby['Players'],'Players','Active_players')
                 sleep(3) #To make sure client gets 1 msg at a time
 
             #This part i basicly gambeled on, i hope it works

@@ -24,22 +24,22 @@ global_char_lst = []
 Inp_interupted = False
 Inp_finished = False
 
-def on_unp_press(key):
+def on_unp_press(key,msg=""):
     global Inp_finished
     if Inp_interupted == True:
         print("Input interupted")
         Inp_finished = True
     if hasattr(key,'char') and key.char != None:
         global_char_lst.append(key.char)
-        print(''.join(global_char_lst),end='\r')
+        print(msg + ''.join(global_char_lst),end='\r')
     elif key == Key.space:
         global_char_lst.append(' ')
-        print(''.join(global_char_lst),end='\r')
+        print(msg + ''.join(global_char_lst),end='\r')
     elif key == Key.backspace:
         if len(global_char_lst) > 0:
             global_char_lst.pop()
-        print(' '*(len(global_char_lst)+1),end='\r')
-        print(''.join(global_char_lst),end='\r')
+        print(' '*(len(global_char_lst)+1+len(msg)),end='\r')
+        print(msg + ''.join(global_char_lst),end='\r')
     elif key == Key.enter:
         Inp_finished = True
 
@@ -53,7 +53,8 @@ async def Unpaused_input():
     if Inp_finished == True:
         return ''.join(global_char_lst)
 
-def Interuptable_input(Timeout=None,report_int=True):
+def Interuptable_input(Timeout=None,report_int=True,message=""):
+    print(message,end='\r')
     global global_char_lst, Inp_finished
     global_char_lst = []
     if Timeout != None:
@@ -61,18 +62,17 @@ def Interuptable_input(Timeout=None,report_int=True):
 
     Inp_interupted = False
     Inp_finished = False
-    listener = Listener(on_press=on_unp_press)
+    listener = Listener(on_press=lambda key: on_unp_press(key,message))
     listener.start()
-
     while True:
         if Timeout != None and datetime.now() == Timeout_date:
-            print(' '*(len(global_char_lst)+1),end='\r')
+            print(' '*(len(global_char_lst)+1+len(message)),end='\r')
             if report_int == True:
                 print("Timedout")
             listener.stop()
             return None
         elif Inp_interupted == True:
-            print(' '*(len(global_char_lst)+1),end='\r')
+            print(' '*(len(global_char_lst)+1+len(message)),end='\r')
             if report_int == True:
                 print("Interupted")
             listener.stop()
@@ -326,7 +326,7 @@ while True:
 
             #Client's actions
             while True:
-                message = client.recvfrom(2048).decode()
+                message = client.recv(2048).decode()
                 print(message)
 
                 if message == "Your turn":
