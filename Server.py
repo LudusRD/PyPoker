@@ -5,6 +5,7 @@ from time import sleep
 import json
 import random
 from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match,Check_for_host,Delete_match,Leave_match,Hard_reset_json
+import P2P_testing
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 Capacity = 4
@@ -179,11 +180,13 @@ def Lobby_handling(Lobby):
     while Lobby_active == True:
         All_cards = []
 
-
         #Wait for host to start game
         #Poll all players until host sends "start game"
         while Game_started == False:
+
             for player in Lobby['Players']:
+                Lobby = P2P_testing.find_room(Lobby['Room_id'])
+                sleep(0.5)
                 player['Cards'] = []
                 try:
                     sock = Get_client_using_id(player['id'])['Socket_obj']
@@ -224,11 +227,12 @@ def Lobby_handling(Lobby):
                     #Roman i removed the second sendto because it sends so fast that it becomes 1 message either way.
                     # (quandale dingle here,  rehehehehehehehe)
                 Game_initialized = True
+                P2P_testing.Transfer_player_state(Lobby,Lobby['Players'],'Players','Active_players')
                 sleep(3) #To make sure client gets 1 msg at a time
 
             #This part i basicly gambeled on, i hope it works
             #It suppose to poll all players for their actions, then process them and send the results back to the clients
-            for player in Lobby['Players']: 
+            for player in Lobby['Active_players']: 
                 try:
                     sock = Get_client_using_id(player['id'])['Socket_obj'] #Gets form dict instead of json
                     sock.sendto("Your turn".encode(),(player['Ip'],6677))

@@ -40,6 +40,9 @@ def Create_match(Room_name,Host,Password=None):
             "current_bet":0,
             "Players":[
                 Host
+            ],
+            "Active_players":[
+
             ]
         }
         #-
@@ -65,7 +68,8 @@ def Delete_match(Room_id):
 
 def find_room(Room_id):
     with open(Json_path,'r') as json_file:
-        for match in json_file['Matches']:
+        data = json.load(json_file)
+        for match in data['Matches']:
             if match['Room_id'] == Room_id:
                 return match
 
@@ -173,6 +177,26 @@ def Join_match(Room_id,client,Password=None):
             print(f"Joined room({Room_id}) succesfully")
             Display_players(Room_id)
             return f"Joined:{Room_id}"
+
+def Transfer_player_state(Room,players,src_state,dst_state):
+    with open(Json_path,'r') as json_file:
+        data = json.load(json_file)
+
+    for match in data['Matches']:
+        if Room['Room_id'] == match['Room_id']:
+            Room = match
+
+    with open(Json_path,'w') as json_file:
+        for player in players:
+            for pt_player in Room[src_state]:
+                if pt_player['id'] == player['id']:
+                    player = pt_player
+            Room[src_state].remove(player)
+            Room[dst_state].append(player)
+            json.dump(data,json_file,indent=4)
+            json_file.seek(0)
+            return Room
+
 
 def Leave_match(Room_id,client):
     with open(Json_path,'r') as json_file:
