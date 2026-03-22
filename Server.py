@@ -4,7 +4,7 @@ import threading
 from time import sleep
 import json
 import random
-from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match,Check_for_host
+from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match,Check_for_host,Delete_match,Leave_match
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 Capacity = 4
@@ -175,7 +175,8 @@ def Match_ingame_requests(Packet,client,lobby):
 def Lobby_handling(Lobby):
     Game_started = False
     Game_initialized = False
-    while True:
+    Lobby_active = True
+    while Lobby_active == True:
         All_cards = []
 
 
@@ -196,10 +197,18 @@ def Lobby_handling(Lobby):
                             sock.sendto("Sucess".encode(),(player['Ip'],6677))
                         else:
                             sock.sendto("Not_host".encode(),(player['Ip'],6677))
+                    elif Packet['Request'] == "close lobby":
+                        if Check_for_host(Packet['id'],Match=Lobby) == True:
+                            sock.sendto("Sucess".encode(),(player['Ip'],6677))
+                            Delete_match(Lobby['Room_id'])
+                            Lobby_active = False
+                            break
+                        else:
+                            sock.sendto("f".encode(),(player['Ip'],6677))
+                            Leave_match(Lobby['Room_id'],player)
                 except socket.timeout:
                     #The server doesn't need to print, it's too common of an occurance
                     pass
-
         while Game_started == True:
             if Game_initialized == False:
                 Lobby['current_bet'] = 0  #Bet reset

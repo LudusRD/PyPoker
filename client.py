@@ -10,6 +10,7 @@ import signal
 import threading
 import keyboard
 from pynput.keyboard import Listener, Key
+from datetime import datetime,timedelta
 
 # Initial connection __----__ 
 host_name = socket.gethostname()
@@ -21,12 +22,13 @@ print("Welcome to PyPoker, don't judge me for bad P2P networking")
 
 global_char_lst = []
 Inp_interupted = False
+Inp_finished = False
 
 def on_unp_press(key):
+    global Inp_finished
     if Inp_interupted == True:
         print("Input interupted")
-        return False
-
+        Inp_finished = True
     if hasattr(key,'char') and key.char != None:
         global_char_lst.append(key.char)
         print(''.join(global_char_lst),end='\r')
@@ -39,19 +41,46 @@ def on_unp_press(key):
         print(' '*(len(global_char_lst)+1),end='\r')
         print(''.join(global_char_lst),end='\r')
     elif key == Key.enter:
-        return False
+        Inp_finished = True
 
 
 async def Unpaused_input():
-    global global_char_lst
+    global global_char_lst, Inp_finished
+    Inp_finished = False
     global_char_lst = []
-    with Listener(on_press=on_unp_press) as listener:
-        listener.join()
-    return ''.join(global_char_lst)
+    listener = Listener(on_press=on_unp_press)
+    listener.start()
+    if Inp_finished == True:
+        return ''.join(global_char_lst)
 
-asyncio.run(Unpaused_input())
+def Interuptable_input(Timeout=None,report_int=True):
+    global global_char_lst, Inp_finished
+    global_char_lst = []
+    if Timeout != None:
+        Timeout_date = datetime.now() + timedelta(seconds=Timeout)
 
-#Interuptable_input(Timeout=1)
+    Inp_interupted = False
+    Inp_finished = False
+    listener = Listener(on_press=on_unp_press)
+    listener.start()
+
+    while True:
+        if Timeout != None and datetime.now() == Timeout_date:
+            print(' '*(len(global_char_lst)+1),end='\r')
+            if report_int == True:
+                print("Timedout")
+            listener.stop()
+            return None
+        elif Inp_interupted == True:
+            print(' '*(len(global_char_lst)+1),end='\r')
+            if report_int == True:
+                print("Interupted")
+            listener.stop()
+            return None
+        elif Inp_finished == True:
+            listener.stop()
+            return ''.join(global_char_lst)
+
 
 while True:
     print("1. Find server from environment file")
@@ -185,6 +214,15 @@ Packet = {
     }
 }
 
+def Reset_room_info():  #Wait a second? Why have we put Cards outside of Packet['room']? eh im to tired to fix it...
+    Packet['Cards'] = []
+    Packet['Room'] ={
+        "ingame":False,
+        "id":"",
+        "Room_name":"",
+        "Is_host":False,
+    }
+
 Packet['Name'] = input("Please input a suitable Name, (there are no curse filters): ")
 Packet['Request'] = "Init"
 Send_request()
@@ -252,15 +290,25 @@ while True:
                     print("Only host can start")
                 else:
                     print("stargame failed")
-            if Lobby_choice == "2":
-                Packet['Request'] = "close lobby"
-                answer = Send_request()
-                In_lobby = False
-
-                
             elif Lobby_choice == "2":
-                Packet['Request'] = "leave"
-                Send_request()
+                if Packet['Room']['Is_host'] == True: #Checks if is_host on client side
+                    Packet['Request'] = "close lobby"
+                    answer = Send_request()
+                    if answer == "Sucess":
+                        print("closed lobby")
+                        Reset_room_info()
+                        In_lobby = False
+                    else: #If the server returns failed then the client has tampered with it's own values somehow
+                        print("!!Error, client and server packets don't line up. Defaulting to leaving lobby")
+                        print("Left lobby")
+                        Reset_room_info()
+                        In_lobby = False
+                else:
+                    Packet['Request'] = "leave"
+                    Send_request()
+                    print("Left lobby")
+                    Reset_room_info()
+                    In_lobby = False
             else:
                 print("invalid choice")
         #Game loop
@@ -286,26 +334,30 @@ while True:
                     print("2. check")
                     print("3. bet")
                     print("4. call")
-                    action_choice = input()
+                    action_choice = Interuptable_input(Timeout=30,report_int=False)
 
-
-                    if action_choice == "1":
-                        result = Send_action("fold")
-                        print(result)
+                    if action_choice != None:
+                        if action_choice == "1":
+                            result = Send_action("fold")
+                            print(result)
+                            break
+                        elif action_choice == "2":
+                            result = Send_action("check")
+                            print(result)
+                        elif action_choice == "3":
+                            amount = int(input("Bet amount: "))
+                            result = Send_action("bet", amount)
+                            print(result)
+                        elif action_choice == "4":
+                            amount = int(input("Call amount: "))
+                            result = Send_action("call", amount)
+                            print(result)
+                        else:
+                            print("invalid choice")
+                    else:  #Timedout
+                        print("Timed out,defaulting to fold")
+                        #server side should fold auto, no need to send action
                         break
-                    elif action_choice == "2":
-                        result = Send_action("check")
-                        print(result)
-                    elif action_choice == "3":
-                        amount = int(input("Bet amount: "))
-                        result = Send_action("bet", amount)
-                        print(result)
-                    elif action_choice == "4":
-                        amount = int(input("Call amount: "))
-                        result = Send_action("call", amount)
-                        print(result)
-                    else:
-                        print("invalid choice")
 
     #client.sendto(("Hello from client".encode()),(Server_ip,6677))
 

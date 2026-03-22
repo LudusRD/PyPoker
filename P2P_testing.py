@@ -173,6 +173,22 @@ def Join_match(Room_id,client,Password=None):
             Display_players(Room_id)
             return f"Joined:{Room_id}"
 
+def Leave_match(Room_id,client):
+    with open(Json_path,'r') as json_file:
+        data = json.load(json_file)
+    Room = None
+    for match in data['Matches']:
+        if match['Room_id'] == Room_id:
+            Room = match
+    if Room == None:
+        print("!!Invalid Room Id!!")
+    else:
+        Room['Players'].remove(client)
+        with open(Json_path,"w") as json_file:
+            json.dump(data,json_file,indent=4)
+    
+
+
 def Display_players(Room_id):
     with open(Json_path,"r") as json_file:
         data = json.load(json_file)
