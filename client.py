@@ -280,11 +280,12 @@ while True:
 
             client.settimeout(0.5)
             try:
-                msg = client.recv(2048)
+                msg = client.recv(2048).decode()
+                if msg == 'start_game':
+                    Game_started = True
             except socket.timeout:
                 pass
-            if msg == 'start_game':
-                Game_started = True
+            
 
             if Lobby_choice == "1":
                 Packet['Request'] = "start game"
