@@ -6,6 +6,7 @@ import json
 import random
 from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match,Check_for_host,Delete_match,Leave_match,Hard_reset_json
 import P2P_testing
+from output import response, do_print
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 Capacity = 4
@@ -193,10 +194,10 @@ def Lobby_handling(Lobby):
             for player in list(Lobby['Players']):
                 try:
                     sock = Get_client_using_id(player['id'])['Socket_obj']
-                    sock.settimeout(0.1)
+                    sock.settimeout(1)
                     raw, addr = sock.recvfrom(2048)
-                    Packet = json.loads(raw.decode())
-                    print(Packet)
+                    Packet = json.loads(Packet.decode())
+                    response(Packet)
 
                     if Packet['Request'] == "start game":
                         if Check_for_host(Packet['id'],Match=Lobby):
@@ -358,8 +359,7 @@ def Handle_client_lobby(client):
                 client[0].settimeout(1.0)
                 Packet,addr = client[0].recvfrom(2048)
                 Packet = json.loads(Packet.decode())
-                print(Packet)
-                print(client[0])
+                response(Packet)
                 Match_lobby_requests(Packet,client[0])
             except socket.timeout:
                 pass    #just loop back and check GameSockets again

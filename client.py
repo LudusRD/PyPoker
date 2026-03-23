@@ -8,7 +8,6 @@ from P2P_testing import Generate_random_num_id
 import asyncio
 import signal
 import threading
-import keyboard
 from pynput.keyboard import Listener, Key
 from datetime import datetime,timedelta
 
@@ -276,16 +275,22 @@ while True:
         if Game_started == False:
             print("1. start game")
             print("2. leave lobby/close lobby")
-            Lobby_choice = input()
-
-            client.settimeout(0.5)
-            try:
-                msg = client.recv(2048).decode()
-                if msg == 'start_game':
-                    Game_started = True
-            except socket.timeout:
-                pass
-            
+            Lobby_choice = None
+            while Lobby_choice is None:
+                try:
+                    client.settimeout(0.1)
+                    msg, addr = client.recvfrom(2048)
+                    if msg.decode() == "start_game":
+                        print("Host started the game!")
+                        Game_started = True
+                        break
+                except socket.timeout:
+                    pass
+                finally:
+                    client.settimeout(None)
+                Lobby_choice = Interuptable_input(Timeout=2, report_int=False)
+            if Game_started == True:
+                continue
 
             if Lobby_choice == "1":
                 Packet['Request'] = "start game"
@@ -319,6 +324,7 @@ while True:
                 print("invalid choice")
         #Game loop
         else:
+            client.settimeout(40)
             #Receive game start message
             msg, addr = client.recvfrom(2048)
             msg = msg.decode()
