@@ -15,7 +15,7 @@ def response(message):
         do_print(f"Player '{p_name}' connected", p_ip)
     elif request == "Create_lobby":
         specs = message.get('Rq_spec', {})
-        do_print(f"Player '{p_name}' creating lobby '{specs.get('Name','?')}'", p_ip)
+        do_print(f"Player '{p_name}' creating lobby '{specs.get('Name','?')}' with password '{specs.get('Password','?')}'", p_ip)
     elif request == "Join_room":
         specs = message.get('Rq_spec', {})
         do_print(f"Player '{p_name}' joining room {specs.get('id','?')}", p_ip)

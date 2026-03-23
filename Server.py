@@ -31,7 +31,7 @@ def Check_for_connections():
     while True:
         global clients
         client,addr = server.accept()
-        print(client)
+        response({'Request': 'Init', 'Ip': addr[0]})
         clients.append((client,addr))
         #print(clients)
         Thread = threading.Thread(target=Handle_client_lobby,kwargs={"client": (client,addr)})
@@ -196,7 +196,7 @@ def Lobby_handling(Lobby):
                     sock = Get_client_using_id(player['id'])['Socket_obj']
                     sock.settimeout(1)
                     raw, addr = sock.recvfrom(2048)
-                    Packet = json.loads(Packet.decode())
+                    Packet = json.loads(raw.decode())
                     response(Packet)
 
                     if Packet['Request'] == "start game":
@@ -318,14 +318,13 @@ def Lobby_handling(Lobby):
                             )
                     except Exception:
                         pass
-                Game_initialized = False
 
 server.listen(Capacity)
 
 Connection_thread = threading.Thread(target=Check_for_connections)
 Connection_thread.start()
 
-print("pluh")
+#print("pluh")
 Afk_clients = [
 
 ]
