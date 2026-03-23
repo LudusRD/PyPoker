@@ -278,6 +278,14 @@ while True:
             print("2. leave lobby/close lobby")
             Lobby_choice = input()
 
+            client.settimeout(0.5)
+            try:
+                msg = client.recv(2048)
+            except socket.timeout:
+                pass
+            if msg == 'start_game':
+                Game_started = True
+
             if Lobby_choice == "1":
                 Packet['Request'] = "start game"
                 answer = Send_request()

@@ -202,6 +202,10 @@ def Lobby_handling(Lobby):
                         if Check_for_host(Packet['id'],Match=Lobby):
                             Game_started = True
                             sock.sendto("Sucess".encode(),(player['Ip'],6677))
+                            for pl_ayer in Lobby['Players']:
+                                if player['id'] != pl_ayer['id']:
+                                    sock = Get_client_using_id(pl_ayer['id'])['Socket_obj'] #Gets form dict instead of json         
+                                    sock.sendto("start_game".encode(),(pl_ayer['Ip'],6677))            
                         else:
                             sock.sendto("Not_host".encode(),(player['Ip'],6677))
 
