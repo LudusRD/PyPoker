@@ -336,7 +336,6 @@ while True:
                     break
                 if message == "Round_over":
                     print("Round over.")
-                    Game_started = False
                     folded = False
                     break
                 if (message.startswith("Waiting for player") or

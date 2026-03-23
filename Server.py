@@ -227,10 +227,14 @@ def Lobby_handling(Lobby):
                 except Exception as e:
                     print(e)
             sleep(0.3)
-
         while Game_started == True:
             if Game_initialized == False:
+                all_back = list(Lobby.get('Active_players', []))
+                if all_back:
+                    Lobby = P2P_testing.Transfer_player_state(Lobby, all_back, 'Active_players', 'Players')
                 Lobby['current_bet'] = 0  #Bet reset
+                for player in Lobby['Players']:
+                    player.setdefault('chips', 1000)
                 deck = Distribute_cards(Lobby['Players'])
                 for player in Lobby['Players']:
                     try:
@@ -309,6 +313,7 @@ def Lobby_handling(Lobby):
                             )
                     except Exception:
                         pass
+                Game_initialized = False
 
 server.listen(Capacity)
 
