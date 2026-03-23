@@ -24,6 +24,8 @@ print(ip)
 
 #Basic connection logic
 clients = []
+Game_sockets = set()
+
 def Check_for_connections():
     while True:
         global clients
@@ -36,7 +38,7 @@ def Check_for_connections():
         Thread.start()
         # Figure out this later, for now use the inefficient threading method
         #asyncio.create_task(Handle_client_lobby((client,addr)))
-        #Done actually
+        #Not done actually
         #asyncio.run(Handle_client_lobby((client,addr)))
 
 
@@ -44,8 +46,6 @@ server.bind((ip,6677))
 print("server bound")
 
 print (server)
-def Decode_string_client(string):
-    pass
 
 def Get_client_using_id(id):
     for client in Standby_clients:
@@ -62,11 +62,6 @@ def Poll_json_for_lobbies():
             room_id = match['Room_id']
             if room_id not in Started_lobby_ids:
                 Started_lobby_ids.add(room_id)
-                players_in_lobby = []
-                for player_data in match['Players']:
-                    client_dict = Get_client_using_id(player_data['id'])
-                    if client_dict:
-                        players_in_lobby.append(client_dict)
                 lobby = match
                 lobby_thread = threading.Thread(target=Lobby_handling, args=(lobby,))
                 lobby_thread.daemon = True
@@ -76,6 +71,7 @@ def Match_lobby_requests(Packet,client):
     #Lobby handling
     print("pluh")
     global server
+    global Game_sockets
     try:
         Request = Packet['Request']
         if Request == 'Get_lobbies':
@@ -91,7 +87,8 @@ def Match_lobby_requests(Packet,client):
                 Cl_Room['ingame'] = True
                 Cl_Room['id'] = specs['id']
                 client.sendto("Sucess".encode(),(Packet['Ip'],6677))
-            #Unsustainable as fuck
+            #Not unsustainable as fuck anymore
+                Game_sockets.add(client)
 
         elif Request == "Create_lobby":
             Specs = Packet['Rq_spec']
@@ -107,17 +104,18 @@ def Match_lobby_requests(Packet,client):
                 if i[0] == client:
                     clients.remove(i)
                     Ingame_clients.append(i)
+            Game_sockets.add(client)
 
         elif Request == "Init":
             Standby_clients.append(Packet)
             Client_dict = Get_client_using_id(Packet['id'])
             Client_dict.update({"Socket_obj":client})
             client.sendto("Initialized".encode(),(Packet['Ip'],6677))
-        
+
         else:
             client.sendto("Invalid code, Error".encode(),(Packet['Ip'],6677))
     except Exception as e:
-        print(e)      
+        print(e)
 
 #Roman compare Packet['Request'] to the different actions you can do
 #//Done
@@ -140,12 +138,12 @@ def Match_ingame_requests(Packet,client,lobby):
     try:
         Request = Packet['Request']
         player_ip = Packet['Ip']
-        
+
         if Request == "fold":
             for player in lobby['Active_players']:
                 if player['id'] == Packet['id']:
                     player['folded'] = True
-                    P2P_testing.Transfer_player_state(lobby,player,'Active_players','Players')
+                    P2P_testing.Transfer_player_state(lobby,[player],'Active_players','Players')
             client.sendto("Folded".encode(),(player_ip,6677))
 
         elif Request == "check":
@@ -159,10 +157,8 @@ def Match_ingame_requests(Packet,client,lobby):
                     player['chips'] = player.get('chips', 1000) - bet_amount
             #Tell everyone about new bet
             for player in lobby['Active_players']:
-                client.sendto(
-                    f"Bet:{bet_amount}".encode(),
-                    (player['Ip'],6677)
-                )
+                p_sock = Get_client_using_id(player['id'])['Socket_obj']
+                p_sock.sendto(f"Bet:{bet_amount}".encode(),(player['Ip'],6677))
 
         elif Request == "call":
             #If no current bet, can't call
@@ -184,43 +180,54 @@ def Lobby_handling(Lobby):
     Game_started = False
     Game_initialized = False
     Lobby_active = True
-    while Lobby_active == True:
-        All_cards = []
 
+    while Lobby_active:
         #Wait for host to start game
         #Poll all players until host sends "start game"
         while Game_started == False:
+            Lobby = P2P_testing.find_room(Lobby['Room_id'])
+            if Lobby is None:
+                Lobby_active = False
+                break
 
-            for player in Lobby['Players']:
-                Lobby = P2P_testing.find_room(Lobby['Room_id'])
-                sleep(0.5)
-                player['Cards'] = []
+            for player in list(Lobby['Players']):
                 try:
                     sock = Get_client_using_id(player['id'])['Socket_obj']
                     sock.settimeout(0.1)
                     raw, addr = sock.recvfrom(2048)
                     Packet = json.loads(raw.decode())
                     print(Packet)
+
                     if Packet['Request'] == "start game":
-                        if Check_for_host(Packet['id'],Match=Lobby) == True:
+                        if Check_for_host(Packet['id'],Match=Lobby):
                             Game_started = True
                             sock.sendto("Sucess".encode(),(player['Ip'],6677))
                         else:
                             sock.sendto("Not_host".encode(),(player['Ip'],6677))
+
                     elif Packet['Request'] == "close lobby":
-                        if Check_for_host(Packet['id'],Match=Lobby) == True:
+                        if Check_for_host(Packet['id'],Match=Lobby):
                             sock.sendto("Sucess".encode(),(player['Ip'],6677))
                             Delete_match(Lobby['Room_id'])
                             Lobby_active = False
+                            Game_started = False    # break out of while loop too
                             break
                         else:
-                            sock.sendto("f".encode(),(player['Ip'],6677))
-                            Leave_match(Lobby['Room_id'])
+                            sock.sendto("Not_host".encode(),(player['Ip'],6677))
+
+                    elif Packet['Request'] == "leave":
+                        Leave_match(Lobby['Room_id'], Packet)
+                        sock.sendto("Sucess".encode(),(player['Ip'],6677))
+                        Game_sockets.discard(sock)
+                        break   #restart the player loop with refreshed lobby
+
                 except socket.timeout:
                     #The server doesn't need to print, it's too common of an occurance
                     pass
                 except Exception as e:
                     print(e)
+            sleep(0.3)
+
         while Game_started == True:
             if Game_initialized == False:
                 Lobby['current_bet'] = 0  #Bet reset
@@ -228,37 +235,82 @@ def Lobby_handling(Lobby):
                 for player in Lobby['Players']:
                     try:
                         sock = Get_client_using_id(player['id'])['Socket_obj'] #Gets form dict instead of json
-                        sock.sendto(f"Lobby started{json.dumps(player['Cards'])}".encode(),(player['Ip'],6677))
+                        sock.sendto(
+                            f"Lobby started{json.dumps(player['Cards'])}".encode(),
+                            (player['Ip'],6677)
+                        )
                     except Exception as e:
                         print(e)
                     #Roman i removed the second sendto because it sends so fast that it becomes 1 message either way.
                     # (quandale dingle here,  rehehehehehehehe)
                 Game_initialized = True
-                Lobby = P2P_testing.Transfer_player_state(Lobby,Lobby['Players'],'Players','Active_players')
+                Lobby = P2P_testing.Transfer_player_state(
+                    Lobby, Lobby['Players'], 'Players', 'Active_players'
+                )
                 sleep(3) #To make sure client gets 1 msg at a time
 
             #This part i basicly gambeled on, i hope it works
             #It suppose to poll all players for their actions, then process them and send the results back to the clients
-            for player in Lobby['Active_players']: 
+            for player in list(Lobby['Active_players']):
                 try:
                     sock = Get_client_using_id(player['id'])['Socket_obj'] #Gets form dict instead of json
                     sock.sendto("Your turn".encode(),(player['Ip'],6677))
-                    for waiter in Lobby['Players']:
-                        if waiter != player:
-                            waiter['Socket_obj'].sendto(f"Waiting for player{player['Name']}".encode(),(waiter['Ip'],6677))
+
+                    #We were using waiter['Socket_obj'] which is a str from JSON,
+                    #not an actual socket. Now we use Get_client_using_id instead
+                    for waiter in Lobby['Active_players']:
+                        if waiter['id'] != player['id']:
+                            waiter_sock = Get_client_using_id(waiter['id'])['Socket_obj']
+                            waiter_sock.sendto(
+                                f"Waiting for player {player['Name']}".encode(),
+                                (waiter['Ip'],6677)
+                            )
+
                     sock.settimeout(30)
                     raw, addr = sock.recvfrom(2048)
                     Packet = json.loads(raw.decode())
                     Match_ingame_requests(Packet, sock, Lobby)
+
+                    #Refresh lobby
+                    Lobby = P2P_testing.find_room(Lobby['Room_id']) or Lobby
+
                 except socket.timeout:
                     #player['folded'] = True
                     #sock.sendto("Folded".encode(),(player['Id'],6677)) #Hey, remember to implement folding
                     pass #Player hasn't sent anything yet
                 except Exception as e:
                     print(e)
-    
 
-#Listens for Capacity number players
+            #After everyone did their moves - notify everyone
+            all_player_ids = (
+                [p['id'] for p in Lobby.get('Active_players', [])] +
+                [p['id'] for p in Lobby.get('Players', [])]
+            )
+            for pid in all_player_ids:
+                try:
+                    c = Get_client_using_id(pid)
+                    if c:
+                        c['Socket_obj'].sendto(
+                            "Round_over".encode(), (c['Ip'], 6677)
+                        )
+                except Exception:
+                    pass
+
+            #If 1 or 0 active players left = gameover
+            if len(Lobby.get('Active_players', [])) <= 1:
+                for pid in all_player_ids:
+                    try:
+                        c = Get_client_using_id(pid)
+                        if c:
+                            c['Socket_obj'].sendto(
+                                "Game_over".encode(), (c['Ip'], 6677)
+                            )
+                    except Exception:
+                        pass
+                Game_started = False
+                Game_initialized = False
+                break
+
 server.listen(Capacity)
 
 Connection_thread = threading.Thread(target=Check_for_connections)
@@ -285,15 +337,24 @@ Poll_thread.start()
 def Handle_client_lobby(client):
     global Afk_clients
     global clients
+    global Game_sockets
     afk = False
     while True:
+        if client[0] in Game_sockets:
+            sleep(0.1)
+            continue
+
         if afk == False:
             try: 
+                #Use a short timeout so we recheck GameSockets regularly
+                client[0].settimeout(1.0)
                 Packet,addr = client[0].recvfrom(2048)
                 Packet = json.loads(Packet.decode())
                 print(Packet)
                 print(client[0])
                 Match_lobby_requests(Packet,client[0])
+            except socket.timeout:
+                pass    #just loop back and check GameSockets again
             except WindowsError as e:
                 print("Client disconnected or unresponsive")
                 print(f'error:{e}')

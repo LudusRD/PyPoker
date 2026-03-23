@@ -1,6 +1,6 @@
 import socket
 from os import environ,getenv
-#Im lazy to install it
+#I actually did install it
 from dotenv import load_dotenv,dotenv_values
 from time import sleep
 import json
@@ -130,13 +130,12 @@ while Connected == False:
 
 print(client)
 #-
-
     
 
 
 def Send_request():
     global Packet
-    Request = json.dumps(Packet)    
+    Request = json.dumps(Packet)
     client.send(Request.encode())
     data = None
     while data == None:
@@ -144,7 +143,6 @@ def Send_request():
             data, addr = client.recvfrom(2048)
         except:
             print("Response request failed, server unrespondant")
-    
     return data.decode()
 #-
 def Room_setup():
@@ -246,9 +244,8 @@ while True:
             # List of lobbies
             if Lobby_choice == "1": #See öabbies
                 Packet['Request'] = "Get_lobbies"
-                lobby_list = json.loads(json.loads(Send_request()))
 
-                Checking_lobby_list = True
+                lobby_list = json.loads(json.loads(Send_request()))
                 for dict in lobby_list:
                     for item in dict.items():
                         print(item)
@@ -325,11 +322,32 @@ while True:
                 print(f"  {card['rank']} of {card['suit']}")
 
             #Client's actions
+            folded = False  #tracks whether this player has folded or not this round
             while True:
                 message = client.recv(2048).decode()
                 print(message)
 
+                if message == "Game_over":
+                    print("Game over!")
+                    Game_started = False
+                    folded = False
+                    Reset_room_info()
+                    In_lobby = False
+                    break
+                if message == "Round_over":
+                    print("Round over.")
+                    Game_started = False
+                    folded = False
+                    break
+                if (message.startswith("Waiting for player") or
+                        message.startswith("Bet:") or
+                        message.startswith("Called:") or
+                        message == "Folded" or
+                        message == "Checked"):
+                    continue
                 if message == "Your turn":
+                    if folded:
+                        continue
                     print("1. fold")
                     print("2. check")
                     print("3. bet")
@@ -340,7 +358,7 @@ while True:
                         if action_choice == "1":
                             result = Send_action("fold")
                             print(result)
-                            break
+                            folded = True
                         elif action_choice == "2":
                             result = Send_action("check")
                             print(result)
@@ -356,9 +374,7 @@ while True:
                             print("invalid choice")
                     else:  #Timedout
                         print("Timed out,defaulting to fold")
-                        #server side should fold auto, no need to send action
-                        break
-
     #client.sendto(("Hello from client".encode()),(Server_ip,6677))
+                        folded = True
 
 print("thanks for playing pypoker!")

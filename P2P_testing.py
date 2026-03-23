@@ -26,7 +26,6 @@ def Hard_reset_json():
 
 
 def Create_match(Room_name,Host,Password=None):
-
     with open(Json_path, "r+") as json_file:
         data = json.load(json_file)
         Host['Room']['Is_host'] = True
@@ -49,7 +48,6 @@ def Create_match(Room_name,Host,Password=None):
 
         data['C_room_id'] += 1
         data['Matches'].append(match)
-        json_file.seek(0)
         with open(Json_path,"w") as json_file:
             json.dump(data,json_file,indent=4)
         return match['Room_id']
@@ -59,8 +57,8 @@ def Delete_match(Room_id):
     with open(Json_path,'r') as json_file:
         data = json.load(json_file)
 
-    data['Matches'].remove(match)
-    json_file.seek(0)
+    if match and match in data['Matches']:
+        data['Matches'].remove(match)
 
     with open(Json_path,'w') as json_file:
         json.dump(data,json_file,indent=4)
@@ -72,6 +70,7 @@ def find_room(Room_id):
         for match in data['Matches']:
             if match['Room_id'] == Room_id:
                 return match
+    return None
 
 local_player = {
     "Name":"",
@@ -126,9 +125,7 @@ def Check_for_host(client_id,Room_id=None,Match=None):
         data = json.load(json_file)
     if Room_id == None and Match == None:
         print("Specify atleaast one way to find it")
-        return
-    if Room_id != None and Match != None:
-        print("Defaulting to Match")
+        return False
 
     if Match != None:
         for player in Match['Players']:
@@ -140,14 +137,13 @@ def Check_for_host(client_id,Room_id=None,Match=None):
         for match in data['Matches']:
             if match['Room_id'] == Room_id:
                 for player in match['Players']:
-                    if player['Room_id'] == client_id:
+                    if player['id'] == client_id:
                         if player['Room']['Is_host'] == True:
                             return True
 
     return False
 
 
-    
 
 
 def Join_match(Room_id,client,Password=None):
@@ -173,10 +169,11 @@ def Join_match(Room_id,client,Password=None):
         Room['Players'].append(client)
         with open(Json_path,"w") as json_file:
             json.dump(data,json_file,indent=4)
-            json_file.seek(0)
-            print(f"Joined room({Room_id}) succesfully")
-            Display_players(Room_id)
-            return f"Joined:{Room_id}"
+        print(f"Joined room({Room_id}) successfully")
+        Display_players(Room_id)
+        return f"Joined:{Room_id}"
+    else:
+        return "Wrong password"
 
 def Transfer_player_state(Room,players,src_state,dst_state):
     with open(Json_path,'r') as json_file:
@@ -185,17 +182,26 @@ def Transfer_player_state(Room,players,src_state,dst_state):
     for match in data['Matches']:
         if Room['Room_id'] == match['Room_id']:
             Room = match
+            break
 
+    if not isinstance(players, list):
+        players = [players]
+
+    for player in players:
+        matched = None
+        for pt_player in list(Room[src_state]):
+            if pt_player['id'] == player['id']:
+                matched = pt_player
+                break
+        if matched:
+            Room[src_state].remove(matched)
+            Room[dst_state].append(matched)
+
+    # Single write after all transfers
     with open(Json_path,'w') as json_file:
-        for player in players:
-            for pt_player in Room[src_state]:
-                if pt_player['id'] == player['id']:
-                    player = pt_player
-            Room[src_state].remove(player)
-            Room[dst_state].append(player)
-            json.dump(data,json_file,indent=4)
-            json_file.seek(0)
-            return Room
+        json.dump(data, json_file, indent=4)
+
+    return Room
 
 
 def Leave_match(Room_id,client):
@@ -207,11 +213,16 @@ def Leave_match(Room_id,client):
             Room = match
     if Room == None:
         print("!!Invalid Room Id!!")
-    else:
-        Room['Players'].remove(client)
-        with open(Json_path,"w") as json_file:
-            json.dump(data,json_file,indent=4)
-    
+        return
+    player_to_remove = None
+    for p in Room['Players']:
+        if p['id'] == client['id']:
+            player_to_remove = p
+            break
+    if player_to_remove:
+        Room['Players'].remove(player_to_remove)
+    with open(Json_path,"w") as json_file:
+        json.dump(data,json_file,indent=4)
 
 
 def Display_players(Room_id):
@@ -238,4 +249,3 @@ if path.exists(Json_path) == False:
 #Print_match_list(Get_return_matches(True))
 
 #Join_match(2,local_player)
-
