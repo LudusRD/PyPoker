@@ -286,18 +286,7 @@ def Lobby_handling(Lobby):
                 [p['id'] for p in Lobby.get('Active_players', [])] +
                 [p['id'] for p in Lobby.get('Players', [])]
             )
-            for pid in all_player_ids:
-                try:
-                    c = Get_client_using_id(pid)
-                    if c:
-                        c['Socket_obj'].sendto(
-                            "Round_over".encode(), (c['Ip'], 6677)
-                        )
-                except Exception:
-                    pass
-
-            #If 1 or 0 active players left = gameover
-            if len(Lobby.get('Active_players', [])) <= 1:
+            if len(Lobby.get('Active_players', [])) == 0:
                 for pid in all_player_ids:
                     try:
                         c = Get_client_using_id(pid)
@@ -310,6 +299,16 @@ def Lobby_handling(Lobby):
                 Game_started = False
                 Game_initialized = False
                 break
+            else:
+                for pid in all_player_ids:
+                    try:
+                        c = Get_client_using_id(pid)
+                        if c:
+                            c['Socket_obj'].sendto(
+                                "Round_over".encode(), (c['Ip'], 6677)
+                            )
+                    except Exception:
+                        pass
 
 server.listen(Capacity)
 
