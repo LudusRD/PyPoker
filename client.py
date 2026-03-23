@@ -10,6 +10,7 @@ import signal
 import threading
 from pynput.keyboard import Listener, Key
 from datetime import datetime,timedelta
+from sys import stdin,stdout
 
 # Initial connection __----__ 
 host_name = socket.gethostname()
@@ -23,7 +24,7 @@ global_char_lst = []
 Inp_interupted = False
 Inp_finished = False
 
-def on_unp_press(key,msg=""):
+def on_unp_press(key,msg=""): 
     global Inp_finished
     if Inp_interupted == True:
         print("Input interupted")
@@ -64,10 +65,11 @@ def Interuptable_input(Timeout=None,report_int=True,message=""):
     listener = Listener(on_press=lambda key: on_unp_press(key,message))
     listener.start()
     while True:
-        if Timeout != None and datetime.now() == Timeout_date:
+        #>= will save us from errors, == is risky
+        if Timeout != None and datetime.now() >= Timeout_date:
             print(' '*(len(global_char_lst)+1+len(message)),end='\r')
-            if report_int == True:
-                print("Timedout")
+            if report_int == True:# Roman it is supposed to print blank spaces to remove the msg you printed
+                print("Timedout") #Idk why it doesn't work rn?
             listener.stop()
             return None
         elif Inp_interupted == True:
@@ -78,6 +80,7 @@ def Interuptable_input(Timeout=None,report_int=True,message=""):
             return None
         elif Inp_finished == True:
             listener.stop()
+            print(' ' * len(stdin.readline()),end="\r")
             return ''.join(global_char_lst)
 
 
@@ -259,7 +262,7 @@ while True:
                 status = Send_request()
                 print(status)
                 if status[:6] == "Sucess":
-                    Packet['Is_host'] = True
+                    Packet['Room']['Is_host'] = True
                     Packet['Room']['id'] = status[7:]
                     Packet['Room']['Room_name'] = Room_name
                     In_lobby = True
@@ -353,20 +356,28 @@ while True:
                     print("Round over.")
                     folded = False
                     break
+
+                if message.startswith("Community:"):
+                    community = json.loads(message[10:])
+                    print("\nCommunity cards:")
+                    for card in community:
+                        print(f"  {card['rank']} of {card['suit']}")
+                    continue
+
                 if (message.startswith("Waiting for player") or
                         message.startswith("Bet:") or
                         message.startswith("Called:") or
                         message == "Folded" or
                         message == "Checked"):
                     continue
-                if message == "Your turn":
+                if message == "Your turn" or message[10:] == "Your turn":
                     if folded:
                         continue
                     print("1. fold")
                     print("2. check")
                     print("3. bet")
                     print("4. call")
-                    action_choice = Interuptable_input(Timeout=30,report_int=False)
+                    action_choice = Interuptable_input(Timeout=30,report_int=False,message=":")
 
                     if action_choice != None:
                         if action_choice == "1":

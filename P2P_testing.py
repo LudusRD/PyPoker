@@ -238,6 +238,42 @@ def Display_players(Room_id):
                 print(f"Is_host: {Player['Room']['Is_host'] == True}")
                 print("")
 
+#json cards handeling
+def Save_player_cards(Room_id, players_with_cards):
+    with open(Json_path, 'r') as json_file:
+        data = json.load(json_file)
+    for match in data['Matches']:
+        if match['Room_id'] == Room_id:
+            for json_player in match['Players']:
+                for mem_player in players_with_cards:
+                    if json_player['id'] == mem_player['id']:
+                        json_player['Cards'] = mem_player['Cards']
+    with open(Json_path, 'w') as json_file:
+        json.dump(data, json_file, indent=4)
+
+#Saves current bet in JSON, so it doesn't reset after find_room
+def Save_current_bet(Room_id, amount):
+    with open(Json_path, 'r') as f:
+        data = json.load(f)
+    for match in data['Matches']:
+        if match['Room_id'] == Room_id:
+            match['current_bet'] = amount
+    with open(Json_path, 'w') as f:
+        json.dump(data, f, indent=4)
+
+#Saves player chips in JSON, so it doesn't reset after find_room
+def Save_player_chips(Room_id, player_id, chips):
+    with open(Json_path, 'r') as f:
+        data = json.load(f)
+    for match in data['Matches']:
+        if match['Room_id'] == Room_id:
+            for state in ['Players', 'Active_players']:
+                for player in match[state]:
+                    if player['id'] == player_id:
+                        player['chips'] = chips
+    with open(Json_path, 'w') as f:
+        json.dump(data, f, indent=4)
+
 if path.exists(Json_path) == False:
     Setup_Logic_Json()
 
