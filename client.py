@@ -65,11 +65,10 @@ def Interuptable_input(Timeout=None,report_int=True,message=""):
     listener = Listener(on_press=lambda key: on_unp_press(key,message))
     listener.start()
     while True:
-        #>= will save us from errors, == is risky
-        if Timeout != None and datetime.now() >= Timeout_date:
+        if Timeout != None and datetime.now() == Timeout_date:
             print(' '*(len(global_char_lst)+1+len(message)),end='\r')
-            if report_int == True:# Roman it is supposed to print blank spaces to remove the msg you printed
-                print("Timedout") #Idk why it doesn't work rn?
+            if report_int == True:
+                print("Timedout")
             listener.stop()
             return None
         elif Inp_interupted == True:
@@ -377,7 +376,7 @@ while True:
                     print("2. check")
                     print("3. bet")
                     print("4. call")
-                    action_choice = Interuptable_input(Timeout=30,report_int=False,message=":")
+                    action_choice = Interuptable_input(Timeout=30,report_int=False)
 
                     if action_choice != None:
                         if action_choice == "1":
