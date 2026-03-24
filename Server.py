@@ -75,7 +75,7 @@ def Poll_json_for_lobbies():
 
 def Match_lobby_requests(Packet,client):
     #Lobby handling
-    print("pluh")
+    #print("pluh")
     global server
     global Game_sockets
     try:
