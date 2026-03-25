@@ -164,7 +164,7 @@ def Join_match(Room_id,client,Password=None):
         print("!!Invalid Room Id!!")
         return "Invalid room Id"
     #Try Joining
-    if Room['Password'] == Password or Room['Password']==None:
+    if (Room['Password'] == Password or Room['Password']== None) and Room['Has_started'] == False:
         client['Is_host'] = False
         Room['Players'].append(client)
         with open(Json_path,"w") as json_file:

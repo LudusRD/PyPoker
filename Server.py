@@ -75,7 +75,7 @@ def Poll_json_for_lobbies():
 
 def Match_lobby_requests(Packet,client):
     #Lobby handling
-    print("pluh")
+    #print("pluh")
     global server
     global Game_sockets
     try:
@@ -246,6 +246,7 @@ def Lobby_handling(Lobby):
         #Poll all players until host sends "start game"
         while Game_started == False:
             Lobby = P2P_testing.find_room(Lobby['Room_id'])
+            Room['Has_started'] = False
             if Lobby is None:
                 Lobby_active = False
                 break
@@ -295,6 +296,7 @@ def Lobby_handling(Lobby):
         while Game_started == True:
             #Lobby update
             Lobby = P2P_testing.find_room(Lobby['Room_id']) or Lobby
+            Room['Has_started'] = True
             if Game_initialized == False:
                 all_back = list(Lobby.get('Active_players', []))
                 if all_back:
