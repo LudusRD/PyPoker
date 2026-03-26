@@ -184,6 +184,8 @@ def Join_room():
                 Packet['Room']['ingame'] = True
                 Packet['Room']['id'] = id
                 In_lobby = True
+                print("1. start game")
+                print("2. leave lobby/close lobby")
                 break
             elif Result == "Game_already_started":
                 print("Cannot join- game is already in progress!")
@@ -283,13 +285,13 @@ while True:
     else:
         #Inside of a lobby
         if Game_started == False:
-            print("1. start game")
-            print("2. leave lobby/close lobby")
+            tot_message = ""
             Lobby_choice = None
             try:
-                client.settimeout(0.15)
+                client.settimeout(0.25)
                 msg, addr = client.recvfrom(2048)
-                if msg.decode() == "start_game":
+                tot_message.join(msg.decode)
+                if tot_message[:10] == "start_game" or "start_game" in tot_message:
                     print("Host started the game!")
                     Game_started = True
                     break
@@ -329,6 +331,8 @@ while True:
                     print("Left lobby")
                     Reset_room_info()
                     In_lobby = False
+            elif Lobby_choice == "":
+                pass
             else:
                 print("invalid choice")
         #Game loop
