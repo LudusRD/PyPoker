@@ -53,7 +53,7 @@ async def Unpaused_input():
     if Inp_finished == True:
         return ''.join(global_char_lst)
 
-def Interuptable_input(Timeout=None,report_int=True,message=""):
+def Interuptable_input(Timeout=None,report_int=True,message="",Ret_none=True):
     print(message,end='\r')
     global global_char_lst, Inp_finished
     global_char_lst = []
@@ -70,13 +70,19 @@ def Interuptable_input(Timeout=None,report_int=True,message=""):
             if report_int == True:
                 print("Timedout")
             listener.stop()
-            return None
+            if Ret_none == True:
+                return None
+            else:
+                return ''.join(global_char_lst)
         elif Inp_interupted == True:
             print(' '*(len(global_char_lst)+1+len(message)),end='\r')
             if report_int == True:
                 print("Interupted")
             listener.stop()
-            return None
+            if Ret_none == True:
+                return None
+            else:
+                return ''.join(global_char_lst)
         elif Inp_finished == True:
             listener.stop()
             print(' ' * len(stdin.readline()),end="\r")
@@ -280,19 +286,18 @@ while True:
             print("1. start game")
             print("2. leave lobby/close lobby")
             Lobby_choice = None
-            while Lobby_choice is None:
-                try:
-                    client.settimeout(0.1)
-                    msg, addr = client.recvfrom(2048)
-                    if msg.decode() == "start_game":
-                        print("Host started the game!")
-                        Game_started = True
-                        break
-                except socket.timeout:
-                    pass
-                finally:
-                    client.settimeout(None)
-                Lobby_choice = Interuptable_input(Timeout=2, report_int=False)
+            try:
+                client.settimeout(0.15)
+                msg, addr = client.recvfrom(2048)
+                if msg.decode() == "start_game":
+                    print("Host started the game!")
+                    Game_started = True
+                    break
+            except socket.timeout:
+                pass
+            finally:
+                client.settimeout(None)
+            Lobby_choice = Interuptable_input(Timeout=2, report_int=False, Ret_none=False)
             if Game_started == True:
                 continue
 
