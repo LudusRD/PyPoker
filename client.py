@@ -296,7 +296,7 @@ while True:
             try:
                 client.settimeout(0.25)
                 msg, addr = client.recvfrom(2048)
-                tot_message += msg.decode
+                tot_message += msg.decode()
                 if tot_message[:10] == "start_game" or "start_game" in tot_message:
                     print("Host started the game!")
                     Game_started = True
