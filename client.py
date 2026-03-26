@@ -179,6 +179,8 @@ def Join_room():
                 Packet['Room']['id'] = id
                 In_lobby = True
                 break
+            elif Result == "Game_already_started":
+                print("Cannot join- game is already in progress!")
             else:
                 print("Join failed")
         #Else goes back to main page
@@ -340,6 +342,7 @@ while True:
 
             #Client's actions
             folded = False  #tracks whether this player has folded or not this round
+            current_bet = current_pot = 0
             while True:
                 message = client.recv(2048).decode()
                 print(message)
@@ -354,6 +357,7 @@ while True:
                 if message == "Round_over":
                     print("Round over.")
                     folded = False
+                    current_bet = current_pot = 0
                     break
 
                 if message.startswith("Community:"):
@@ -363,19 +367,34 @@ while True:
                         print(f"  {card['rank']} of {card['suit']}")
                     continue
 
+                if message.startswith("Bet:") or message.startswith("Raise:"):
+                    # Format is "Bet:XYZ:Pot:XYZ" or "Raise:XYZ:Pot:XYZ"
+                    parts = message.split(":")
+                    current_bet = int(parts[1])
+                    current_pot = int(parts[3]) if len(parts) >= 4 else current_pot
+                    continue
+                if message.startswith("Called:"):
+                    parts = message.split(":")
+                    current_pot = int(parts[3]) if len(parts) >= 4 else current_pot
+                    continue
+
                 if (message.startswith("Waiting for player") or
-                        message.startswith("Bet:") or
-                        message.startswith("Called:") or
+                        message.startswith("Cannot_") or
                         message == "Folded" or
                         message == "Checked"):
                     continue
                 if message == "Your turn" or message[10:] == "Your turn":
                     if folded:
                         continue
-                    print("1. fold")
-                    print("2. check")
-                    print("3. bet")
-                    print("4. call")
+                    print(f"[Pot: {current_pot} | Current bet: {current_bet}]")
+                    if current_bet == 0:
+                        print("1. fold")
+                        print("2. check")
+                        print("3. bet")
+                    else:
+                        print("1. fold")
+                        print("2. call")
+                        print("3. raise")
                     action_choice = Interuptable_input(Timeout=30,report_int=False)
 
                     if action_choice != None:
@@ -384,15 +403,18 @@ while True:
                             print(result)
                             folded = True
                         elif action_choice == "2":
-                            result = Send_action("check")
+                            if current_bet == 0:
+                                result = Send_action("check")
+                            else:
+                                result = Send_action("call")
                             print(result)
                         elif action_choice == "3":
-                            amount = int(input("Bet amount: "))
-                            result = Send_action("bet", amount)
-                            print(result)
-                        elif action_choice == "4":
-                            amount = int(input("Call amount: "))
-                            result = Send_action("call", amount)
+                            if current_bet == 0:
+                                amount = int(input("Bet amount: "))
+                                result = Send_action("bet", amount)
+                            else:
+                                amount = int(input(f"Raise to (must be > {current_bet}): "))
+                                result = Send_action("raise", amount)
                             print(result)
                         else:
                             print("invalid choice")

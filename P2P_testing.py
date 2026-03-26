@@ -37,6 +37,7 @@ def Create_match(Room_name,Host,Password=None):
             "Has_started":False,
             "Is_open":True,
             "current_bet":0,
+            "pot":0,
             "Players":[
                 Host
             ],
@@ -164,7 +165,10 @@ def Join_match(Room_id,client,Password=None):
         print("!!Invalid Room Id!!")
         return "Invalid room Id"
     #Try Joining
-    if (Room['Password'] == Password or Room['Password']== None) and Room['Has_started'] == False:
+    if Room['Has_started'] == True:
+        print("Game already in progress")
+        return "Game_already_started"
+    if (Room['Password'] == Password or Room['Password']== None):
         client['Is_host'] = False
         Room['Players'].append(client)
         with open(Json_path,"w") as json_file:
@@ -271,6 +275,26 @@ def Save_player_chips(Room_id, player_id, chips):
                 for player in match[state]:
                     if player['id'] == player_id:
                         player['chips'] = chips
+    with open(Json_path, 'w') as f:
+        json.dump(data, f, indent=4)
+
+#Saves total pot in jSON so that it doesn't reset after find_room
+def Save_pot(Room_id, amount):
+    with open(Json_path, 'r') as f:
+        data = json.load(f)
+    for match in data['Matches']:
+        if match['Room_id'] == Room_id:
+            match['pot'] = amount
+    with open(Json_path, 'w') as f:
+        json.dump(data, f, indent=4)
+
+#Saves Has_started flag in json
+def Save_has_started(Room_id, value):
+    with open(Json_path, 'r') as f:
+        data = json.load(f)
+    for match in data['Matches']:
+        if match['Room_id'] == Room_id:
+            match['Has_started'] = value
     with open(Json_path, 'w') as f:
         json.dump(data, f, indent=4)
 

@@ -95,6 +95,8 @@ def Match_lobby_requests(Packet,client):
                 client.sendto("Sucess".encode(),(Packet['Ip'],6677))
             #Not unsustainable as fuck anymore
                 Game_sockets.add(client)
+            else:
+                client.sendto(result.encode(),(Packet['Ip'],6677))
 
         elif Request == "Create_lobby":
             Specs = Packet['Rq_spec']
@@ -153,22 +155,51 @@ def Match_ingame_requests(Packet,client,lobby):
             client.sendto("Folded".encode(),(player_ip,6677))
 
         elif Request == "check":
+            if lobby.get('current_bet', 0) > 0:
+                client.sendto("Cannot_check".encode(),(player_ip,6677))
+                return
             client.sendto("Checked".encode(),(player_ip,6677))
 
         elif Request == "bet":
+            if lobby.get('current_bet', 0) > 0:
+                client.sendto("Cannot_bet:bet_exists".encode(),(player_ip,6677))
+                return
             bet_amount = Packet['Rq_spec'].get('amount', 0)
             lobby['current_bet'] = bet_amount
             #Save bet in Json
+            lobby['pot'] = lobby.get('pot', 0) + bet_amount
             P2P_testing.Save_current_bet(lobby['Room_id'], bet_amount)
+            P2P_testing.Save_pot(lobby['Room_id'], lobby['pot'])
             for player in lobby['Active_players']:
                 if player['id'] == Packet['id']:
                     player['chips'] = player.get('chips', 1000) - bet_amount
                     #Save chips in JSON
                     P2P_testing.Save_player_chips(lobby['Room_id'], player['id'], player['chips'])
-            #Tell everyone about new bet
+            #Tell everyone about new bet and pot
             for player in lobby['Active_players']:
                 p_sock = Get_client_using_id(player['id'])['Socket_obj']
-                p_sock.sendto(f"Bet:{bet_amount}".encode(),(player['Ip'],6677))
+                p_sock.sendto(f"Bet:{bet_amount}:Pot:{lobby['pot']}".encode(),(player['Ip'],6677))
+
+        elif Request == "raise":
+            if lobby.get('current_bet', 0) == 0:
+                client.sendto("Cannot_raise:no_bet".encode(),(player_ip,6677))
+                return
+            raise_amount = Packet['Rq_spec'].get('amount', 0)
+            if raise_amount <= lobby['current_bet']:
+                client.sendto(f"Cannot_raise:must_exceed_{lobby['current_bet']}".encode(),(player_ip,6677))
+                return
+            lobby['current_bet'] = raise_amount
+            lobby['pot'] = lobby.get('pot', 0) + raise_amount
+            P2P_testing.Save_current_bet(lobby['Room_id'], raise_amount)
+            P2P_testing.Save_pot(lobby['Room_id'], lobby['pot'])
+            for player in lobby['Active_players']:
+                if player['id'] == Packet['id']:
+                    player['chips'] = player.get('chips', 1000) - raise_amount
+                    P2P_testing.Save_player_chips(lobby['Room_id'], player['id'], player['chips'])
+            #Tell everyone about raise and pot
+            for player in lobby['Active_players']:
+                p_sock = Get_client_using_id(player['id'])['Socket_obj']
+                p_sock.sendto(f"Raise:{raise_amount}:Pot:{lobby['pot']}".encode(),(player['Ip'],6677))
 
         elif Request == "call":
             #If no current bet, can't call
@@ -176,13 +207,15 @@ def Match_ingame_requests(Packet,client,lobby):
                 client.sendto("No_bet".encode(),(player_ip,6677))
             else:
                 bet_amount = lobby['current_bet']
+                lobby['pot'] = lobby.get('pot', 0) + bet_amount
+                P2P_testing.Save_pot(lobby['Room_id'], lobby['pot'])
                 #We need to check for active players here
                 for player in lobby['Active_players']:
                     if player['id'] == Packet['id']:
                         player['chips'] = player.get('chips', 1000) - bet_amount
                         #Chips save in JSON
                         P2P_testing.Save_player_chips(lobby['Room_id'], player['id'], player['chips'])
-                client.sendto(f"Called:{bet_amount}".encode(),(player_ip,6677))
+                client.sendto(f"Called:{bet_amount}:Pot:{lobby['pot']}".encode(),(player_ip,6677))
 
         else:
             client.sendto("Unknown_request".encode(),(player_ip,6677))
@@ -246,10 +279,11 @@ def Lobby_handling(Lobby):
         #Poll all players until host sends "start game"
         while Game_started == False:
             Lobby = P2P_testing.find_room(Lobby['Room_id'])
-            Room['Has_started'] = False
             if Lobby is None:
                 Lobby_active = False
                 break
+            Lobby['Has_started'] = False
+            P2P_testing.Save_has_started(Lobby['Room_id'], False)
 
             for player in list(Lobby['Players']):
                 try:
@@ -262,6 +296,8 @@ def Lobby_handling(Lobby):
                     if Packet['Request'] == "start game":
                         if Check_for_host(Packet['id'],Match=Lobby):
                             Game_started = True
+                            Lobby['Has_started'] = True
+                            P2P_testing.Save_has_started(Lobby['Room_id'], True)
                             sock.sendto("Sucess".encode(),(player['Ip'],6677))
                             for pl_ayer in Lobby['Players']:
                                 if player['id'] != pl_ayer['id']:
@@ -296,13 +332,14 @@ def Lobby_handling(Lobby):
         while Game_started == True:
             #Lobby update
             Lobby = P2P_testing.find_room(Lobby['Room_id']) or Lobby
-            Room['Has_started'] = True
             if Game_initialized == False:
                 all_back = list(Lobby.get('Active_players', []))
                 if all_back:
                     Lobby = P2P_testing.Transfer_player_state(Lobby, all_back, 'Active_players', 'Players')
                 Lobby['current_bet'] = 0  #Bet reset
+                Lobby['pot'] = 0          #Pot reset
                 P2P_testing.Save_current_bet(Lobby['Room_id'], 0)
+                P2P_testing.Save_pot(Lobby['Room_id'], 0)
                 for player in Lobby['Players']:
                     player.setdefault('chips', 1000)
                 deck = Distribute_cards(Lobby['Players'])
@@ -369,6 +406,7 @@ def Lobby_handling(Lobby):
                             pass
                     Game_started = False
                     Game_initialized = False
+                    P2P_testing.Save_has_started(Lobby['Room_id'], False)
                 else:
                     for pid in all_player_ids:
                         try:
