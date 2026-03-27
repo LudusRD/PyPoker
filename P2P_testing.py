@@ -58,7 +58,7 @@ def Delete_match(Room_id):
     with open(Json_path,'r') as json_file:
         data = json.load(json_file)
 
-    if match and match in data['Matches']:
+    if match in data['Matches']:
         data['Matches'].remove(match)
 
     with open(Json_path,'w') as json_file:

@@ -486,8 +486,14 @@ def Lobby_handling(Lobby):
                                 Game_sockets.discard(c['Socket_obj'])
                         except Exception:
                             pass
+
+                    Delete_match(Lobby['Room_id'])
+                    Started_lobby_ids.discard(Lobby['Room_id'])
+                    
                     Game_started = False
                     Game_initialized = False
+                    Lobby_active = False
+                    P2P_testing.Delete_match(Lobby['Room_id'])
                     P2P_testing.Save_has_started(Lobby['Room_id'], False)
                 else:
                     for pid in all_player_ids:
