@@ -7,6 +7,36 @@ import random
 from P2P_testing import Print_match_list,Get_return_matches,Create_match,Join_match,Check_for_host,Delete_match,Leave_match,Hard_reset_json
 import P2P_testing
 from output import response, do_print
+from itertools import combinations
+from collections import Counter
+
+RANK_MAP = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
+HAND_NAMES = ["High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House", "Four of a Kind", "Straight Flush"]
+
+def evaluate_five_cards(cards):
+    ranks = sorted([RANK_MAP[c['rank']] for c in cards], reverse=True)
+    suits = [c['suit'] for c in cards]
+    is_flush = len(set(suits)) == 1
+    is_straight = (max(ranks) - min(ranks) == 4) and len(set(ranks)) == 5
+    if ranks == [14, 5, 4, 3, 2]:
+        is_straight = True
+        ranks = [5, 4, 3, 2, 1]
+    counts = Counter(ranks).most_common()
+    counts.sort(key=lambda x: (x[1], x[0]), reverse=True)
+    sorted_ranks_by_freq = [item[0] for item in counts]
+    frequencies = [item[1] for item in counts]
+    if is_straight and is_flush: return (8, sorted_ranks_by_freq[0])
+    if frequencies[0] == 4: return (7, sorted_ranks_by_freq[0], sorted_ranks_by_freq[1])
+    if frequencies[0] == 3 and frequencies[1] == 2: return (6, sorted_ranks_by_freq[0], sorted_ranks_by_freq[1])
+    if is_flush: return (5, ranks)
+    if is_straight: return (4, sorted_ranks_by_freq[0])
+    if frequencies[0] == 3: return (3, sorted_ranks_by_freq[0], sorted_ranks_by_freq[1], sorted_ranks_by_freq[2])
+    if frequencies[0] == 2 and frequencies[1] == 2: return (2, sorted_ranks_by_freq[0], sorted_ranks_by_freq[1], sorted_ranks_by_freq[2])
+    if frequencies[0] == 2: return (1, sorted_ranks_by_freq[0], ranks)
+    return (0, ranks)
+
+def get_best_combination(seven_cards):
+    return max(combinations(seven_cards, 5), key=evaluate_five_cards)
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 Capacity = 4
@@ -392,6 +422,23 @@ def Lobby_handling(Lobby):
                 Broadcast_to_lobby(Lobby, f"Community:{json.dumps(community_cards)}")
                 sleep(1)
                 Lobby = Betting_round(Lobby)
+
+                active = Lobby.get('Active_players', [])
+                if active:
+                    best_score = None
+                    winner_name = ""
+                    for player in active:
+                        seven = player.get('Cards', []) + community_cards
+                        score = evaluate_five_cards(get_best_combination(seven))
+                        if best_score is None or score > best_score:
+                            best_score = score
+                            winner_name = player['Name']
+                    Broadcast_to_lobby(Lobby, f"Winner:{winner_name}:{HAND_NAMES[best_score[0]]}")
+                    sleep(0.2)
+                else:
+                    last = Lobby.get('Players', [])
+                    if last:
+                        Broadcast_to_lobby(Lobby, f"Winner:{last[-1]['Name']}:Last Standing")
 
                 all_player_ids = (
                     [p['id'] for p in Lobby.get('Active_players', [])] +
