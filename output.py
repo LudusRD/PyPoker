@@ -15,7 +15,7 @@ def response(message):
         if p_name == "Unknown":
             do_print(f"Some player connected without a name", p_ip)
         else:
-            do_print(f"Player '{p_name}' connected", p_ip)
+            do_print(f"Got name: '{p_name}'", p_ip)
     elif request == "Create_lobby":
         specs = message.get('Rq_spec', {})
         do_print(f"Player '{p_name}' creating lobby '{specs.get('Name','?')}' with password '{specs.get('Password','?')}'", p_ip)
@@ -27,9 +27,12 @@ def response(message):
     elif request == "start game":
         do_print(f"Player '{p_name}' attempting to start game", p_ip)
     elif request == "close lobby":
-        do_print(f"Player '{p_name}' closing lobby", p_ip)
+        specs = message.get('Rq_spec', {})
+        do_print(f"Player '{p_name}' closing lobby '{specs.get('Name','?')}'", p_ip)
     elif request == "leave":
         do_print(f"Player '{p_name}' left lobby", p_ip)
+    elif request == "disconnect":
+        do_print(f"Player '{p_name}' disconnected", p_ip)
     elif request == "fold":
         do_print(f"Player '{p_name}' folded", p_ip)
     elif request == "check":
@@ -43,5 +46,3 @@ def response(message):
     elif request:
         if request not in ["GetPlayers"]:
             do_print(f"Unknown request: {request} | full message: {message}", p_ip)
-    elif request == "disconnect":
-        do_print(f"Player '{p_name}' disconnected", p_ip)

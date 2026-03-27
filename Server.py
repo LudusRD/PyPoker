@@ -18,21 +18,42 @@ def evaluate_five_cards(cards):
     suits = [c['suit'] for c in cards]
     is_flush = len(set(suits)) == 1
     is_straight = (max(ranks) - min(ranks) == 4) and len(set(ranks)) == 5
+
+    #Lower straight check
     if ranks == [14, 5, 4, 3, 2]:
         is_straight = True
         ranks = [5, 4, 3, 2, 1]
+
     counts = Counter(ranks).most_common()
     counts.sort(key=lambda x: (x[1], x[0]), reverse=True)
     sorted_ranks_by_freq = [item[0] for item in counts]
     frequencies = [item[1] for item in counts]
+
+    #Straight Flush- five consecutive cards of the same suit
     if is_straight and is_flush: return (8, sorted_ranks_by_freq[0])
+
+    #Four of a Kind- four cards of the same rank
     if frequencies[0] == 4: return (7, sorted_ranks_by_freq[0], sorted_ranks_by_freq[1])
+
+    #Full House- three of a kind + a pair
     if frequencies[0] == 3 and frequencies[1] == 2: return (6, sorted_ranks_by_freq[0], sorted_ranks_by_freq[1])
+
+    #Flush- five cards of the same suit (not in sequence)
     if is_flush: return (5, ranks)
+
+    #Straight- five consecutive cards (not same suit)
     if is_straight: return (4, sorted_ranks_by_freq[0])
+
+    #Three of a Kind- exactly three cards of the same rank, no pair
     if frequencies[0] == 3: return (3, sorted_ranks_by_freq[0], sorted_ranks_by_freq[1], sorted_ranks_by_freq[2])
+
+    #Two Pair- two different pairs
     if frequencies[0] == 2 and frequencies[1] == 2: return (2, sorted_ranks_by_freq[0], sorted_ranks_by_freq[1], sorted_ranks_by_freq[2])
+
+    #One Pair- exactly one pair
     if frequencies[0] == 2: return (1, sorted_ranks_by_freq[0], ranks)
+
+    #High Card- no combination matched
     return (0, ranks)
 
 def get_best_combination(seven_cards):
@@ -263,7 +284,7 @@ def Broadcast_to_lobby(Lobby, message):
             c = Get_client_using_id(pid)
             if c:
                 c['Socket_obj'].sendto(message.encode(), (c['Ip'], 6677))
-        except Exception:
+        except (ConnectionResetError, OSError):  #Catch WinError 10054
             pass
 
 #Betting round logic, returns the updated lobby after the round is over
@@ -288,6 +309,8 @@ def Betting_round(Lobby):
 
             sock.settimeout(30)
             raw, addr = sock.recvfrom(2048)
+            if not raw:
+                continue
             Packet = json.loads(raw.decode())
             Match_ingame_requests(Packet, sock, Lobby)
 
@@ -342,6 +365,13 @@ def Lobby_handling(Lobby):
                             Delete_match(Lobby['Room_id'])
                             Lobby_active = False
                             Game_started = False    # break out of while loop too
+                            for p in Lobby['Players']:
+                                if p['id'] != Packet['id']:
+                                    c = Get_client_using_id(p['id'])
+                                    if c:
+                                        c['Socket_obj'].sendto("Lobby_closed".encode(), (p['Ip'], 6677))
+                                        Game_sockets.discard(c['Socket_obj'])
+                            Game_sockets.discard(sock)
                             break
                         else:
                             sock.sendto("Not_host".encode(),(player['Ip'],6677))
@@ -493,12 +523,16 @@ def Handle_client_lobby(client):
         if client[0] in Game_sockets:
             sleep(0.1)
             continue
+        else:
+            afk = False
 
         if afk == False:
             try: 
                 #Use a short timeout so we recheck GameSockets regularly
                 client[0].settimeout(1.0)
                 Packet,addr = client[0].recvfrom(2048)
+                if not Packet:
+                    continue
                 Packet = json.loads(Packet.decode())
                 response(Packet)
                 Match_lobby_requests(Packet,client[0])
