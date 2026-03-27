@@ -634,6 +634,12 @@ while True:
                         ui.render_table()
                         continue
 
+                    if message.startswith("Winner:"):
+                        parts = message.split(":")
+                        ui.add_log(f"Winner: {parts[1]} ({parts[2]})")
+                        ui.render_table()
+                        continue
+
                     if (message.startswith("Waiting for player") or
                             message.startswith("Cannot_") or
                             message == "Folded" or
