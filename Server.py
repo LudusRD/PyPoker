@@ -546,6 +546,7 @@ def Handle_client_lobby(client):
                         break
                 response({'Request': 'disconnect', 'Ip': client[1][0], 'Name': player_name})
                 afk = True
+                return
             except Exception as e:
                 print("Request error 1")
                 print(e)
