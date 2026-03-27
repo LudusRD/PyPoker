@@ -187,23 +187,24 @@ print("Welcome to PyPoker, don't judge me for bad P2P networking")
 global_char_lst = []
 Inp_interupted = False
 Inp_finished = False
+Need_buffer_clear = True #bool to check buffer
 
 def on_unp_press(key,msg=""): 
     global Inp_finished
+    global global_char_lst
     if Inp_interupted == True:
         #print("Input interupted")
         Inp_finished = True
     if hasattr(key,'char') and key.char != None:
         global_char_lst.append(key.char)
-        print(msg + ''.join(global_char_lst),end='\r')
+        print('\r' + msg + ''.join(global_char_lst) + ' ', end='\r')
     elif key == Key.space:
         global_char_lst.append(' ')
-        print(msg + ''.join(global_char_lst),end='\r')
+        print('\r' + msg + ''.join(global_char_lst) + ' ', end='\r')
     elif key == Key.backspace:
         if len(global_char_lst) > 0:
             global_char_lst.pop()
-        print(' '*(len(global_char_lst)+1+len(msg)),end='\r')
-        print(msg + ''.join(global_char_lst),end='\r')
+        print('\r' + msg + ''.join(global_char_lst) + '  ', end='\r')
     elif key == Key.enter:
         Inp_finished = True
 
@@ -218,10 +219,14 @@ async def Unpaused_input():
     listener.stop()
     return ''.join(global_char_lst)
 
-def Interuptable_input(Timeout=None,report_int=True,message="",Ret_none=True):
-    print(message,end='\r')
-    global global_char_lst, Inp_finished, Inp_interupted
-    global_char_lst = []
+def Interuptable_input(Timeout=None,report_int=True,message="",Ret_none=True, clear_buffer=True):
+    global global_char_lst, Inp_finished, Inp_interupted, Need_buffer_clear
+    
+    #Check if we need to wipe the typing buffer
+    if clear_buffer or Need_buffer_clear:
+        global_char_lst = []
+        Need_buffer_clear = False
+        
     Inp_interupted = False
     Inp_finished = False
 
@@ -230,19 +235,32 @@ def Interuptable_input(Timeout=None,report_int=True,message="",Ret_none=True):
 
     listener = Listener(on_press=lambda key: on_unp_press(key,message))
     listener.start()
+    
+    #Just for a test
+    print('\r' + message + ''.join(global_char_lst), end='\r')
+
     while True:
         if Timeout != None and datetime.now() >= Timeout_date:
-            print(' '*(len(global_char_lst)+1+len(message)),end='\r')
             listener.stop()
-            if Ret_none == True: return None
-            else: return ''.join(global_char_lst)
+            return None
+            
         elif Inp_interupted == True:
             print(' '*(len(global_char_lst)+1+len(message)),end='\r')
             listener.stop()
             if Ret_none == True: return None
             else: return ''.join(global_char_lst)
+            
         elif Inp_finished == True:
             listener.stop()
+            Need_buffer_clear = True
+            
+            try:
+                import msvcrt
+                while msvcrt.kbhit(): msvcrt.getch()
+            except ImportError:
+                pass
+                
+            print('\r' + ' ' * (len(message) + len(global_char_lst) + 2), end='\r')
             return ''.join(global_char_lst)
         sleep(0.05)
 
@@ -287,27 +305,27 @@ while not Connected:
         except Exception as e:
             attempts += 1
             if server_choice == "1":
-                ui.render_connect_screen(f"{C['RED']}damn, i don't know what error you got? ({attempts}/10){C['RES']}")
+                ui.render_connect_screen(f"{C['RED']}damn, i don't know what error you got? ({attempts}/5){C['RES']}")
             else:
                 if isinstance(e, ConnectionRefusedError):
-                    ui.render_connect_screen(f"Server refused connection ({attempts}/10)")
+                    ui.render_connect_screen(f"Server refused connection ({attempts}/5)")
                 elif isinstance(e, ConnectionAbortedError):
-                    ui.render_connect_screen(f"Server had an abortion ({attempts}/10)")
+                    ui.render_connect_screen(f"Server had an abortion ({attempts}/5)")
                 elif isinstance(e, OSError):
                     if e.errno == 11001:
-                        ui.render_connect_screen(f"Learn how to type IP, you dummy ({attempts}/10)")
+                        ui.render_connect_screen(f"Learn how to type IP, you dummy ({attempts}/5)")
                     elif e.errno == 10048:
-                        ui.render_connect_screen(f"Already connected ({attempts}/10)")
+                        ui.render_connect_screen(f"Already connected ({attempts}/5)")
                     elif e.errno == 10060:
-                        ui.render_connect_screen(f"Connection timed out, server unrespondant ({attempts}/10)")
+                        ui.render_connect_screen(f"Connection timed out, server unrespondant ({attempts}/5)")
                     else:
-                        ui.render_connect_screen(f"Unknown Error: {e} ({attempts}/10)")
+                        ui.render_connect_screen(f"Unknown Error: {e} ({attempts}/5)")
                 else:
-                    ui.render_connect_screen(f"damn, i don't know what error you got? ({attempts}/10)")
+                    ui.render_connect_screen(f"damn, i don't know what error you got? ({attempts}/5)")
             sleep(1)
 
     if not Connected:
-        ui.render_connect_screen(f"{C['RED']}Failed 10 times. Returning to main menu...{C['RES']}")
+        ui.render_connect_screen(f"{C['RED']}Failed 5 times. Returning to main menu...{C['RES']}")
         sleep(2)
 
 #------------------____________---------------------
@@ -496,7 +514,7 @@ while True:
             dummy_list = [Packet]
             ui.render_in_lobby(Packet['Room']['Room_name'], Packet['Room']['id'], dummy_list, Packet['Room']['Is_host'])
             
-            Lobby_choice = Interuptable_input(Timeout=2, report_int=False, Ret_none=False, message=f"{C['GREEN']}> {C['RES']}")
+            Lobby_choice = Interuptable_input(Timeout=2, report_int=False, Ret_none=True, message=f"{C['GREEN']}> {C['RES']}", clear_buffer=False)
             if Game_started == True:
                 continue
 
@@ -529,7 +547,7 @@ while True:
                     Reset_room_info()
                     In_lobby = False
                 sleep(1)
-            elif Lobby_choice == "":
+            elif Lobby_choice is None or Lobby_choice == "":
                 pass
             else:
                 pass
@@ -637,7 +655,7 @@ while True:
                         else:
                             print(f" [{C['GREY']}1{C['RES']}] Fold   [{C['BLUE']}2{C['RES']}] Call    [{C['YELLOW']}3{C['RES']}] Raise")
                         
-                        action_choice = Interuptable_input(Timeout=30,report_int=False, message=f" {C['GREEN']}> {C['RES']}")
+                        action_choice = Interuptable_input(Timeout=30,report_int=False, message=f" {C['GREEN']}> {C['RES']}", clear_buffer=True)
 
                         if action_choice != None:
                             if action_choice == "1":
