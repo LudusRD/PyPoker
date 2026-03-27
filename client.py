@@ -511,7 +511,8 @@ while True:
             finally:
                 if not DEBUG_MODE: client.settimeout(None)
             
-            dummy_list = [Packet]
+            Players = Send_action("GetPlayers")
+            dummy_list = json.loads(Players)
             ui.render_in_lobby(Packet['Room']['Room_name'], Packet['Room']['id'], dummy_list, Packet['Room']['Is_host'])
             
             Lobby_choice = Interuptable_input(Timeout=2, report_int=False, Ret_none=True, message=f"{C['GREEN']}> {C['RES']}", clear_buffer=False)
@@ -562,7 +563,19 @@ while True:
                     
                     ui.reset_game_state()
                     #Recieve cards
-                    Packet['Cards'] = json.loads(msg[13:])
+                    try:
+                        Packet['Cards'] = json.loads(msg[13:])
+                    except:
+                        try:
+                            Packet['Cards'] = json.loads(msg[23:])
+                        except:
+                            try:
+                                Packet['Cards'] = json.loads(tot_message[23:])
+                            except:
+                                print(msg)
+                                print(tot_message)
+                                print("Error loading")
+
                     user = UIPlayer(Packet['Name'], 1000, is_user=True)
                     user.cards = [Card(c['rank'], c['suit']) for c in Packet['Cards']]
                     ui.u_players = [user]

@@ -322,6 +322,11 @@ def Lobby_handling(Lobby):
                         Game_sockets.discard(sock)
                         break   #restart the player loop with refreshed lobby
 
+                    elif Packet['Request'] == "GetPlayers":
+                        Dict_players = json.dumps(Lobby['Players'])
+                        sock.sendto(Dict_players.encode(),(player['Ip'],6677))
+                        
+
                 except socket.timeout:
                     #The server doesn't need to print, it's too common of an occurance
                     pass
