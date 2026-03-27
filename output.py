@@ -43,3 +43,5 @@ def response(message):
     elif request:
         if request not in ["GetPlayers"]:
             do_print(f"Unknown request: {request} | full message: {message}", p_ip)
+    elif request == "disconnect":
+        do_print(f"Player '{p_name}' disconnected", p_ip)

@@ -504,9 +504,13 @@ def Handle_client_lobby(client):
                 Match_lobby_requests(Packet,client[0])
             except socket.timeout:
                 pass    #just loop back and check GameSockets again
-            except WindowsError as e:
-                print("Client disconnected or unresponsive")
-                print(f'error:{e}')
+            except WindowsError:
+                player_name = "Unknown"
+                for sc in Standby_clients:
+                    if sc.get('Socket_obj') == client[0]:
+                        player_name = sc.get('Name', 'Unknown')
+                        break
+                response({'Request': 'disconnect', 'Ip': client[1][0], 'Name': player_name})
                 afk = True
             except Exception as e:
                 print("Request error 1")
