@@ -115,7 +115,7 @@ class PokerUI:
         self.clear()
         self.draw_header("Available Lobbies")
         if not lobbies_data or lobbies_data == "[]" or lobbies_data == '""':
-            print(f"{C['GREY']}{'No lobbies available. Create one!':^self.W}{C['RES']}\n")
+            print(f"{C['GREY']}{'No lobbies available. Create one!':^{self.W}}{C['RES']}\n")
         else:
             try:
                 lobbies = json.loads(lobbies_data)
