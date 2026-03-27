@@ -606,19 +606,29 @@ while True:
                     if message == "Game_over":
                         ui.add_log("Game over!")
                         ui.render_table()
-                        sleep(2)
+                        answer = input(f" {C['YELLOW']}Go to menu? (y/n):{C['RES']} ")
+                        if answer.lower() != 'y':
+                            print(f" {C['RED']}Sorry, gotta kick you out anyway.{C['RES']}")
+                            sleep(1)
                         Game_started = False
                         folded = False
                         Reset_room_info()
                         In_lobby = False
                         break
+
                     if message == "Round_over":
                         ui.add_log("Round over.")
                         ui.current_bet = 0
                         ui.render_table()
+                        answer = input(f" {C['YELLOW']}Go to menu? (y/n):{C['RES']} ")
+                        if answer.lower() != 'y':
+                            print(f" {C['RED']}Sorry, gotta kick you out anyway.{C['RES']}")
+                            sleep(1)
+                        Game_started = False
                         folded = False
-                        current_bet = current_pot = 0
-                        continue
+                        Reset_room_info()
+                        In_lobby = False
+                        break
 
                     if message.startswith("Community:"):
                         community = json.loads(message[10:])
@@ -649,7 +659,7 @@ while True:
 
                     if message.startswith("Winner:"):
                         parts = message.split(":")
-                        ui.add_log(f"Winner: {parts[1]} ({parts[2]})")
+                        ui.add_log(f"{C['RED']}Winner: {parts[1]} ({parts[2]}){C['RES']}")
                         ui.render_table()
                         continue
 

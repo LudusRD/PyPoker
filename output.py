@@ -12,7 +12,10 @@ def response(message):
     p_name = message.get('Name', 'Unknown')
 
     if request == "Init":
-        do_print(f"Player '{p_name}' connected", p_ip)
+        if p_name == "Unknown":
+            do_print(f"Some player connected without a name", p_ip)
+        else:
+            do_print(f"Player '{p_name}' connected", p_ip)
     elif request == "Create_lobby":
         specs = message.get('Rq_spec', {})
         do_print(f"Player '{p_name}' creating lobby '{specs.get('Name','?')}' with password '{specs.get('Password','?')}'", p_ip)
@@ -38,4 +41,5 @@ def response(message):
         amount = message.get('Rq_spec', {}).get('amount', '?')
         do_print(f"Player '{p_name}' called {amount}", p_ip)
     elif request:
-        do_print(f"Unknown request: {request} | full message: {message}", p_ip)
+        if request not in ["GetPlayers"]:
+            do_print(f"Unknown request: {request} | full message: {message}", p_ip)
